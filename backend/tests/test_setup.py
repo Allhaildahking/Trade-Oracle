@@ -119,6 +119,7 @@ def test_builds_candidate_when_all_evidence_aligns(monkeypatch) -> None:
     assert result.sweep == sweep
     assert result.displacement == displacement
     assert result.break_retest == break_retest
+    assert result.fundamental_score == Decimal("3")
 
 
 def test_rejects_neutral_fundamental_bias(monkeypatch) -> None:
