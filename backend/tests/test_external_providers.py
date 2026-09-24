@@ -3,9 +3,9 @@ from decimal import Decimal
 
 import pytest
 
+from app.analysis.llm import GroqReasoner
 import app.analysis.llm as llm_module
 import app.data.fred as fred_module
-from app.analysis.llm import GroqReasoner
 from app.data.fred import FREDProvider, MacroObservation
 from app.data.http import ProviderError
 
