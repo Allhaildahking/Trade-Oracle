@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+from itertools import pairwise
 
 from app.models.market import Candle
 
@@ -26,7 +27,7 @@ def validate_candles(
     if len(ordered) != len({c.timestamp for c in ordered}):
         issues.append(DataIssue("DUPLICATE_TIMESTAMP", "Duplicate candle timestamps detected."))
 
-    for previous, current in zip(ordered, ordered[1:], strict=True):
+    for previous, current in pairwise(ordered):
         if current.timestamp <= previous.timestamp:
             issues.append(
                 DataIssue(
