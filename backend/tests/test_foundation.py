@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from app.analysis.decision import DecisionContext, decide
 from app.core.constants import (
     CORE_INSTRUMENTS,
