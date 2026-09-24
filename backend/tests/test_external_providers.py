@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-import app.data.fred as fred_module
 import app.analysis.llm as llm_module
+import app.data.fred as fred_module
 import pytest
 from app.analysis.llm import GroqReasoner
 from app.data.fred import FREDProvider, MacroObservation
