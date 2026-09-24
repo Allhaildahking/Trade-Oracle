@@ -55,7 +55,12 @@ def detect_regime(
         for index, candle in enumerate(recent)
     ]
     baseline_ranges = [
-        _true_range(candle, baseline[index - 1] if index else ordered[-lookback - baseline_window - 1])
+        _true_range(
+            candle,
+            baseline[index - 1]
+            if index
+            else ordered[-lookback - baseline_window - 1],
+        )
         for index, candle in enumerate(baseline)
     ]
 
