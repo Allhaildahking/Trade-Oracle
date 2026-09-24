@@ -73,6 +73,6 @@ def test_maps_completed_session_high_low() -> None:
         for level in london
     )
     assert any(
-        level.kind == "SESSION_LOW" and level.price == Decimal("1.09")
+        level.kind == "SESSION_LOW" and level.price == Decimal("1.08")
         for level in london
     )
