@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.data.alpha_vantage import AlphaVantageNewsProvider
 from app.data.base import EconomicCalendarProvider, MarketDataProvider, NewsProvider
+from app.data.fred import FREDProvider
 from app.data.trading_economics import TradingEconomicsProvider
 from app.data.twelve_data import TwelveDataProvider
 
@@ -14,6 +15,10 @@ def build_market_provider(api_key: str | None = None) -> MarketDataProvider:
 
 def build_calendar_provider(api_key: str | None = None) -> EconomicCalendarProvider:
     return TradingEconomicsProvider(api_key)
+
+
+def build_fred_provider(api_key: str | None = None) -> FREDProvider:
+    return FREDProvider(api_key)
 
 
 def build_news_provider(api_key: str | None = None) -> NewsProvider:
