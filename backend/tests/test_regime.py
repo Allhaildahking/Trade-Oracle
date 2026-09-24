@@ -30,7 +30,7 @@ def sample(
     values = [Decimal("1.1000")] * 71
     for index in range(51, 71):
         if trend:
-            values[index] = Decimal("1.1000") + Decimal("0.0005") * (index - 30)
+            values[index] = Decimal("1.1000") + Decimal("0.0002") * (index - 30)
     return [
         candle(
             index,
