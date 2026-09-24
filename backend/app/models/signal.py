@@ -36,6 +36,8 @@ class Signal:
     created_at: datetime
     invalidation_reason: str | None = None
     expiry_at: datetime | None = None
+    state: SignalState = SignalState.WATCH
+    updated_at: datetime | None = None
 
     @property
     def risk_distance(self) -> float:
