@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from app.models.market import Candle
 from app.models.liquidity import LiquidityLevel
+from app.models.market import Candle
 
 _SESSION_WINDOWS = {
     "ASIA": (0, 8),
