@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -18,8 +19,8 @@ def make_setup(direction: str = "BUY", sweep_price: str = "1.0980") -> SetupCand
         kind="PREVIOUS_DAY_LOW" if direction == "BUY" else "PREVIOUS_DAY_HIGH",
         side="SELL_SIDE" if direction == "BUY" else "BUY_SIDE",
         price=Decimal(sweep_price),
-        period_start=__import__("datetime").datetime(2026, 1, 1, tzinfo=__import__("datetime").UTC),
-        period_end=__import__("datetime").datetime(2026, 1, 2, tzinfo=__import__("datetime").UTC),
+        period_start=datetime(2026, 1, 1, tzinfo=UTC),
+        period_end=datetime(2026, 1, 2, tzinfo=UTC),
         label="setup invalidation",
     )
     sweep = LiquiditySweep(
@@ -61,7 +62,7 @@ def make_confirmation(direction: str = "BUY", entry: str = "1.1010") -> Confirma
     event = StructureEvent(
         instrument="EURUSD",
         timeframe="5M",
-        timestamp=__import__("datetime").datetime(2026, 1, 2, 12, 5, tzinfo=__import__("datetime").UTC),
+        timestamp=datetime(2026, 1, 2, 12, 5, tzinfo=UTC),
         price=Decimal(entry),
         kind="BOS",
         direction="BULLISH" if direction == "BUY" else "BEARISH",
