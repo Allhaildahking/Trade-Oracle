@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from decimal import Decimal
 
 from app.models.market import Candle
 from app.models.structure import StructureEvent, StructureSnapshot, SwingPoint
@@ -117,7 +116,6 @@ def detect_structure(
 
         if high_breaks:
             swing = max(high_breaks, key=lambda item: item.index)
-            direction = "BULLISH"
             kind = "CHoCH" if prior_trend == "BEARISH" else "BOS"
             events.append(
                 StructureEvent(
@@ -126,7 +124,7 @@ def detect_structure(
                     timestamp=candle.timestamp,
                     price=candle.close,
                     kind=kind,
-                    direction=direction,
+                    direction="BULLISH",
                     broken_swing=swing,
                 )
             )
@@ -134,7 +132,6 @@ def detect_structure(
 
         if low_breaks:
             swing = max(low_breaks, key=lambda item: item.index)
-            direction = "BEARISH"
             kind = "CHoCH" if prior_trend == "BULLISH" else "BOS"
             events.append(
                 StructureEvent(
@@ -143,7 +140,7 @@ def detect_structure(
                     timestamp=candle.timestamp,
                     price=candle.close,
                     kind=kind,
-                    direction=direction,
+                    direction="BEARISH",
                     broken_swing=swing,
                 )
             )
