@@ -9,6 +9,7 @@ from app.analysis.llm import GroqReasoner
 from app.data.fred import FREDProvider, MacroObservation
 from app.data.http import ProviderError
 
+
 def test_fred_parses_observations(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         fred_module,
