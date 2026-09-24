@@ -44,18 +44,18 @@ def detect_regime(
         (candle for candle in candles if candle.is_complete),
         key=lambda candle: candle.timestamp,
     )
-    if len(ordered) < baseline_window + 1:
+    if len(ordered) < baseline_window + lookback + 1:
         raise ValueError("not enough completed candles for regime detection")
 
     recent = ordered[-lookback:]
-    baseline = ordered[-(baseline_window + 1) :]
+    baseline = ordered[-(baseline_window + lookback) : -lookback]
 
     recent_ranges = [
         _true_range(candle, recent[index - 1] if index else ordered[-lookback - 1])
         for index, candle in enumerate(recent)
     ]
     baseline_ranges = [
-        _true_range(candle, baseline[index - 1] if index else ordered[-baseline_window - 2])
+        _true_range(candle, baseline[index - 1] if index else ordered[-lookback - baseline_window - 1])
         for index, candle in enumerate(baseline)
     ]
 
