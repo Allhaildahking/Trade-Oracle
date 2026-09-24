@@ -24,6 +24,9 @@ pythonpath = ["backend"]
 line-length = 100
 target-version = "py313"
 
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
