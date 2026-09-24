@@ -28,17 +28,17 @@ def sample(
     recent_spread: str = "0.0010",
     trend: bool = False,
 ) -> list[Candle]:
-    values = [Decimal("1.1000")] * 51
-    for index in range(31, 51):
+    values = [Decimal("1.1000")] * 71
+    for index in range(51, 71):
         if trend:
             values[index] = Decimal("1.1000") + Decimal("0.0005") * (index - 30)
     return [
         candle(
             index,
             str(values[index]),
-            spread=recent_spread if index >= 31 else baseline_spread,
+            spread=recent_spread if index >= 51 else baseline_spread,
         )
-        for index in range(51)
+        for index in range(71)
     ]
 
 
@@ -69,4 +69,4 @@ def test_unstable_overrides_other_classification() -> None:
 
 def test_requires_enough_history() -> None:
     with pytest.raises(ValueError, match="not enough"):
-        detect_regime(sample()[:30])
+        detect_regime(sample()[:60])
