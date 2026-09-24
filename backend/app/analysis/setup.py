@@ -128,7 +128,7 @@ def detect_setup_candidate(
         timeframe="15M",
         direction=pair_bias.direction,
         status=status,
-        fundamental_score=str(pair_bias.score),
+        fundamental_score=pair_bias.score,
         regime=regime,
         structure_events=structure_15m.events,
         sweep=matching_sweep,
