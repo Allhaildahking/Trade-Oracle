@@ -28,8 +28,8 @@ def candle(
 
 def test_detects_bullish_break_and_retest() -> None:
     candles = [
-        candle(0, "1.1000", "1.1010", "1.0990", "1.1005"),
-        candle(1, "1.1005", "1.1030", "1.1000", "1.1025"),
+        candle(0, "1.1000", "1.1010", "1.0990", "1.1000"),
+        candle(1, "1.1000", "1.1030", "1.1000", "1.1025"),
         candle(2, "1.1025", "1.1000", "1.0998", "1.1018"),
     ]
 
@@ -43,8 +43,8 @@ def test_detects_bullish_break_and_retest() -> None:
 
 def test_detects_bearish_break_and_retest() -> None:
     candles = [
-        candle(0, "1.1000", "1.1010", "1.0990", "1.0995"),
-        candle(1, "1.0995", "1.1000", "1.0970", "1.0975"),
+        candle(0, "1.1000", "1.1010", "1.0990", "1.1005"),
+        candle(1, "1.1005", "1.1000", "1.0970", "1.0975"),
         candle(2, "1.0975", "1.1002", "1.0968", "1.0980"),
     ]
 
@@ -57,8 +57,8 @@ def test_detects_bearish_break_and_retest() -> None:
 
 def test_failed_retest_is_not_detected() -> None:
     candles = [
-        candle(0, "1.1000", "1.1010", "1.0990", "1.1005"),
-        candle(1, "1.1005", "1.1030", "1.1000", "1.1025"),
+        candle(0, "1.1000", "1.1010", "1.0990", "1.1000"),
+        candle(1, "1.1000", "1.1030", "1.1000", "1.1025"),
         candle(2, "1.1025", "1.1040", "1.1000", "1.0995"),
     ]
 
