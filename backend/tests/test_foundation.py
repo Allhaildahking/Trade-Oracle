@@ -11,6 +11,7 @@ from app.core.constants import (
 )
 from app.models.signal import Direction, Signal
 
+
 def test_v1_core_instruments() -> None:
     assert CORE_INSTRUMENTS == (
         "EURUSD",
