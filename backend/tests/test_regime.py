@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-
 from app.analysis.regime import detect_regime
 from app.models.market import Candle
 
