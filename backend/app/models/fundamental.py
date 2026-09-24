@@ -34,3 +34,20 @@ class NewsItem:
     sentiment_label: str | None = None
     sentiment_score: Decimal | None = None
     source: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class CurrencyBias:
+    currency: str
+    score: Decimal
+    evidence: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PairBias:
+    instrument: str
+    base: CurrencyBias
+    quote: CurrencyBias
+    score: Decimal
+    direction: str
+    evidence: tuple[str, ...]
