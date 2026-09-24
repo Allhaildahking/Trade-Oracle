@@ -38,8 +38,8 @@ class GroqReasoner:
         }
         response = get_json(
             "https://api.groq.com/openai/v1/chat/completions",
-            {"Authorization": f"Bearer {self.api_key}"},
             method="POST",
+            headers={"Authorization": f"Bearer {self.api_key}"},
             json_body=payload,
         )
         if not isinstance(response, dict):
