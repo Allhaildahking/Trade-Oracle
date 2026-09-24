@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.constants import DECISIONS
-
 
 @dataclass(frozen=True, slots=True)
 class DecisionContext:
@@ -36,5 +34,3 @@ def decide(context: DecisionContext) -> str:
 
     return "NO_TRADE"
 
-
-assert "NO_TRADE" in DECISIONS
