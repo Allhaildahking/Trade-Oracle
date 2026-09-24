@@ -67,7 +67,11 @@ def detect_setup_candidate(
         reasons.append(f"15M regime: {regime.regime}")
 
     desired_direction = (
-        "BULLISH" if pair_bias.direction == "BUY" else "BEARISH" if pair_bias.direction == "SELL" else None
+        "BULLISH"
+        if pair_bias.direction == "BUY"
+        else "BEARISH"
+        if pair_bias.direction == "SELL"
+        else None
     )
 
     matching_sweep = next(
