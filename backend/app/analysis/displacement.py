@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from app.models.market import Candle
 from app.models.displacement import Displacement
+from app.models.market import Candle
 
 
 def detect_displacements(
