@@ -26,7 +26,7 @@ def validate_candles(
     if len(ordered) != len({c.timestamp for c in ordered}):
         issues.append(DataIssue("DUPLICATE_TIMESTAMP", "Duplicate candle timestamps detected."))
 
-    for previous, current in zip(ordered, ordered[1:]):
+    for previous, current in zip(ordered, ordered[1:], strict=True):
         if current.timestamp <= previous.timestamp:
             issues.append(
                 DataIssue(
@@ -48,11 +48,21 @@ def validate_candles(
 
     for candle in ordered:
         if candle.high < max(candle.open, candle.close, candle.low):
-            issues.append(DataIssue("INVALID_HIGH", "High is below an OHLC value.", candle.timestamp))
+            issues.append(
+                DataIssue("INVALID_HIGH", "High is below an OHLC value.", candle.timestamp)
+            )
         if candle.low > min(candle.open, candle.close, candle.high):
-            issues.append(DataIssue("INVALID_LOW", "Low is above an OHLC value.", candle.timestamp))
+            issues.append(
+                DataIssue("INVALID_LOW", "Low is above an OHLC value.", candle.timestamp)
+            )
         if min(candle.open, candle.high, candle.low, candle.close) <= 0:
-            issues.append(DataIssue("NON_POSITIVE_PRICE", "OHLC prices must be positive.", candle.timestamp))
+            issues.append(
+                DataIssue(
+                    "NON_POSITIVE_PRICE",
+                    "OHLC prices must be positive.",
+                    candle.timestamp,
+                )
+            )
 
     return issues
 
