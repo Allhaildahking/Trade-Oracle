@@ -28,8 +28,14 @@ def test_maps_previous_day_high_low() -> None:
     levels = map_liquidity(candles)
 
     day_levels = [level for level in levels if level.kind.startswith("PREVIOUS_DAY")]
-    assert any(level.kind == "PREVIOUS_DAY_HIGH" and level.price == Decimal("1.12") for level in day_levels)
-    assert any(level.kind == "PREVIOUS_DAY_LOW" and level.price == Decimal("1.08") for level in day_levels)
+    assert any(
+        level.kind == "PREVIOUS_DAY_HIGH" and level.price == Decimal("1.12")
+        for level in day_levels
+    )
+    assert any(
+        level.kind == "PREVIOUS_DAY_LOW" and level.price == Decimal("1.08")
+        for level in day_levels
+    )
 
 
 def test_maps_previous_week_high_low() -> None:
@@ -42,8 +48,14 @@ def test_maps_previous_week_high_low() -> None:
     levels = map_liquidity(candles)
 
     week_levels = [level for level in levels if level.kind.startswith("PREVIOUS_WEEK")]
-    assert any(level.kind == "PREVIOUS_WEEK_HIGH" and level.price == Decimal("1.15") for level in week_levels)
-    assert any(level.kind == "PREVIOUS_WEEK_LOW" and level.price == Decimal("1.07") for level in week_levels)
+    assert any(
+        level.kind == "PREVIOUS_WEEK_HIGH" and level.price == Decimal("1.15")
+        for level in week_levels
+    )
+    assert any(
+        level.kind == "PREVIOUS_WEEK_LOW" and level.price == Decimal("1.07")
+        for level in week_levels
+    )
 
 
 def test_maps_completed_session_high_low() -> None:
@@ -56,5 +68,11 @@ def test_maps_completed_session_high_low() -> None:
     levels = map_liquidity(candles)
 
     london = [level for level in levels if level.session == "LONDON"]
-    assert any(level.kind == "SESSION_HIGH" and level.price == Decimal("1.12") for level in london)
-    assert any(level.kind == "SESSION_LOW" and level.price == Decimal("1.09") for level in london)
+    assert any(
+        level.kind == "SESSION_HIGH" and level.price == Decimal("1.12")
+        for level in london
+    )
+    assert any(
+        level.kind == "SESSION_LOW" and level.price == Decimal("1.09")
+        for level in london
+    )
