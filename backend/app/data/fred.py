@@ -7,10 +7,10 @@ FRED-specific response shapes.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-import os
 
 from app.data.http import ProviderError, get_json
 
