@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.analysis.trade import construct_trade
 import pytest
 
 from app.analysis.trade import construct_trade
@@ -11,14 +10,6 @@ from app.models.liquidity_sweep import LiquiditySweep
 from app.models.regime import RegimeSnapshot
 from app.models.setup import SetupCandidate
 from app.models.structure import StructureEvent
-from app.models.confirmation import Confirmation5M
-from app.models.liquidity import LiquidityLevel
-from app.models.liquidity_sweep import LiquiditySweep
-from app.models.regime import RegimeSnapshot
-from app.models.setup import SetupCandidate
-from app.models.structure import StructureEvent
-
-
 def make_setup(direction: str = "BUY", sweep_price: str = "1.0980") -> SetupCandidate:
     level = LiquidityLevel(
         instrument="EURUSD",
