@@ -5,10 +5,10 @@ from __future__ import annotations
 from app.analysis.displacement import detect_displacements
 from app.analysis.liquidity_sweep import detect_liquidity_sweeps
 from app.analysis.structure import detect_structure
+from app.models.confirmation import Confirmation5M
 from app.models.liquidity import LiquidityLevel
 from app.models.market import Candle
 from app.models.setup import SetupCandidate
-from app.models.confirmation import Confirmation5M
 
 
 def confirm_5m(
