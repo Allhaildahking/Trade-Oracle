@@ -2,9 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+
 from app.analysis.regime import detect_regime
 from app.models.market import Candle
-
 
 def candle(index: int, close: str, *, spread: str = "0.0010") -> Candle:
     timestamp = datetime(2026, 1, 1, tzinfo=UTC) + timedelta(minutes=15 * index)
