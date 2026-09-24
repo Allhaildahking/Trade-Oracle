@@ -29,7 +29,6 @@ INDICATOR_DIRECTION: dict[str, int] = {
 }
 
 
-
 def _indicator_direction(title: str) -> int:
     lowered = title.lower()
     for keyword, direction in INDICATOR_DIRECTION.items():
