@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-import os
 
 from app.data.base import EconomicCalendarProvider
 from app.data.http import ProviderError, get_json
