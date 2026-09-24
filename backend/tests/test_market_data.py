@@ -1,8 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
 from app.data.repository import InMemoryCandleRepository
 from app.data.validation import validate_candles
 from app.models.market import Candle
