@@ -1,7 +1,8 @@
-"""Evidence-based fundamental aggregation.
+"""Initial fundamental evidence scoring.
 
-This is not a trade trigger. It converts macro evidence into a pair-relative
-bias that the later decision engine can combine with technical structure.
+This module deliberately stays conservative. Economic surprises are not all
+directionally equivalent, so indicator semantics must be explicit. Unknown
+events contribute zero directional score rather than being guessed.
 """
 
 from __future__ import annotations
@@ -10,6 +11,23 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from app.models.fundamental import EconomicEvent, NewsItem
+
+INDICATOR_DIRECTION: dict[str, int] = {
+    "inflation": 1,
+    "cpi": 1,
+    "ppi": 1,
+    "interest rate": 1,
+    "policy rate": 1,
+    "fed funds": 1,
+    "gdp": 1,
+    "pmi": 1,
+    "retail sales": 1,
+    "wage": 1,
+    "earnings": 1,
+    "employment": 1,
+    "unemployment": -1,
+    "jobless claims": -1,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,19 +47,28 @@ class PairBias:
     evidence: tuple[str, ...]
 
 
+def _indicator_direction(title: str) -> int:
+    lowered = title.lower()
+    for keyword, direction in INDICATOR_DIRECTION.items():
+        if keyword in lowered:
+            return direction
+    return 0
+
+
 def _event_signal(event: EconomicEvent) -> Decimal:
-    if event.actual is None or event.forecast is None:
+    if event.actual is None or event.forecast is None or event.actual == event.forecast:
         return Decimal("0")
-    if event.actual == event.forecast:
+    direction = _indicator_direction(event.title)
+    if direction == 0:
         return Decimal("0")
-    direction = Decimal("1") if event.actual > event.forecast else Decimal("-1")
+    surprise = Decimal("1") if event.actual > event.forecast else Decimal("-1")
     importance = event.importance.lower()
     multiplier = Decimal("1.0")
     if "high" in importance:
         multiplier = Decimal("1.5")
     elif "low" in importance:
         multiplier = Decimal("0.5")
-    return direction * multiplier
+    return surprise * direction * multiplier
 
 
 def score_currency(
@@ -58,7 +85,7 @@ def score_currency(
         signal = _event_signal(event)
         if signal:
             score += signal
-            evidence.append(f"{event.title}: actual vs forecast signal {signal:+}")
+            evidence.append(f"{event.title}: surprise contribution {signal:+}")
 
     for item in news:
         if currency.upper() not in item.currencies or item.sentiment_score is None:
@@ -82,5 +109,6 @@ def score_pair(
     quote = score_currency(instrument[3:], events, news)
     score = base.score - quote.score
     direction = "BUY" if score > 0 else "SELL" if score < 0 else "NEUTRAL"
-    evidence = base.evidence + quote.evidence
-    return PairBias(instrument, base, quote, score, direction, evidence)
+    return PairBias(
+        instrument, base, quote, score, direction, base.evidence + quote.evidence
+    )
