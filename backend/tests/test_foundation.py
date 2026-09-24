@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
+
 from app.analysis.decision import DecisionContext, decide
 from app.core.constants import (
     CORE_INSTRUMENTS,
@@ -9,7 +10,6 @@ from app.core.constants import (
     TECHNICAL_WEIGHT,
 )
 from app.models.signal import Direction, Signal
-
 
 def test_v1_core_instruments() -> None:
     assert CORE_INSTRUMENTS == (
