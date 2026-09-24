@@ -7,9 +7,9 @@ analysis layer.
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from decimal import Decimal
+import os
 
 from app.data.base import MarketDataProvider
 from app.data.http import ProviderError, get_json
