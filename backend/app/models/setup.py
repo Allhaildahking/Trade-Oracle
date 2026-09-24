@@ -8,7 +8,6 @@ from typing import Literal
 
 from app.models.break_retest import BreakRetest
 from app.models.displacement import Displacement
-from app.models.fundamental import PairBias
 from app.models.liquidity_sweep import LiquiditySweep
 from app.models.regime import RegimeSnapshot
 from app.models.structure import StructureEvent
