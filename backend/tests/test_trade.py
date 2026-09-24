@@ -1,8 +1,6 @@
 from datetime import UTC, datetime
 from decimal import Decimal
-
 import pytest
-
 from app.analysis.trade import construct_trade
 from app.models.confirmation import Confirmation5M
 from app.models.liquidity import LiquidityLevel
