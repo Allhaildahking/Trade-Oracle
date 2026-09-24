@@ -6,9 +6,9 @@ price provider so Trade Oracle can swap market-data vendors independently.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-import os
 
 from app.data.base import NewsProvider
 from app.data.http import ProviderError, get_json
