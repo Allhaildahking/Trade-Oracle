@@ -7,10 +7,9 @@ events contribute zero directional score rather than being guessed.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 
-from app.models.fundamental import EconomicEvent, NewsItem
+from app.models.fundamental import CurrencyBias, EconomicEvent, NewsItem, PairBias
 
 INDICATOR_DIRECTION: dict[str, int] = {
     "inflation": 1,
@@ -29,22 +28,6 @@ INDICATOR_DIRECTION: dict[str, int] = {
     "jobless claims": -1,
 }
 
-
-@dataclass(frozen=True, slots=True)
-class CurrencyBias:
-    currency: str
-    score: Decimal
-    evidence: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class PairBias:
-    instrument: str
-    base: CurrencyBias
-    quote: CurrencyBias
-    score: Decimal
-    direction: str
-    evidence: tuple[str, ...]
 
 
 def _indicator_direction(title: str) -> int:
