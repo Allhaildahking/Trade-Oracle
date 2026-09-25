@@ -9,7 +9,7 @@ import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-RequestSender = Callable[[Request], bytes]
+RequestSender = Callable[[Request], object]
 
 
 class TelegramDeliveryError(RuntimeError):
@@ -54,8 +54,10 @@ class TelegramSender:
             raise TelegramDeliveryError("Telegram request failed") from exc
 
         try:
+            if hasattr(raw_response, "read"):
+                raw_response = raw_response.read()
             response = json.loads(raw_response.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        except (AttributeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise TelegramDeliveryError("Telegram returned invalid JSON") from exc
 
         if response.get("ok") is not True:
