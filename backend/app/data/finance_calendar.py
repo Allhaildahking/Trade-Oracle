@@ -1,7 +1,7 @@
 """Finance Calendar economic-calendar adapter."""
 
-from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from datetime import UTC, datetime
 
 from app.data.base import EconomicCalendarProvider
 from app.data.http import ProviderError, get_json
