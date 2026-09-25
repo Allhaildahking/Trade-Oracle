@@ -51,8 +51,11 @@ def test_market_report_contains_ranked_pair_details() -> None:
     assert "  SL: 1.0950" in report
     assert "  TP: 1.1150" in report
     assert "  Invalidation: 1.0940" in report
+    assert "  Reason: trade setup" in report
     assert "2. GBPUSD | WAIT | score=0.610 | direction=N/A | RR=N/A" in report
     assert "3. USDJPY | BLOCKED | score=0.550 | direction=N/A | RR=N/A" in report
+    assert "  Reason: waiting" in report
+    assert "  Reason: news" in report
     assert "TOP RESULT: EURUSD (TRADE)" in report
 
 
