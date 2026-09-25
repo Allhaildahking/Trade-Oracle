@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 from app.analysis.runner import OracleRunner
 from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS
-from app.models.market_scan import MarketScan
+from app.models.market_scan import MarketScan, PairAssessment
 from app.models.oracle import OracleAnalysis
 
 
@@ -30,22 +30,12 @@ class MarketRunner:
             self.oracle.analyze_pair(instrument, checked_at=now)
             for instrument in DEFAULT_ACTIVE_INSTRUMENTS
         )
-        scan = _build_scan(analyses)
-        return scan, analyses
+        return _build_scan(analyses), analyses
 
 
 def _build_scan(analyses: tuple[OracleAnalysis, ...]) -> MarketScan:
-    assessments = tuple(
-        _assessment(analysis)
-        for analysis in analyses
-    )
-    ranked = tuple(
-        sorted(
-            assessments,
-            key=_ranking_key,
-            reverse=True,
-        )
-    )
+    assessments = tuple(_assessment(analysis) for analysis in analyses)
+    ranked = tuple(sorted(assessments, key=_ranking_key, reverse=True))
     return MarketScan(
         assessments=assessments,
         ranked=ranked,
@@ -53,9 +43,9 @@ def _build_scan(analyses: tuple[OracleAnalysis, ...]) -> MarketScan:
     )
 
 
-def _assessment(analysis: OracleAnalysis):
+def _assessment(analysis: OracleAnalysis) -> PairAssessment:
     trade = analysis.trade
-    return __import__("app.models.market_scan", fromlist=["PairAssessment"]).PairAssessment(
+    return PairAssessment(
         instrument=analysis.instrument,
         decision=analysis.decision,
         weighted_score=analysis.weighted_score,
@@ -78,7 +68,7 @@ _DECISION_PRIORITY = {
 }
 
 
-def _ranking_key(candidate):
+def _ranking_key(candidate: PairAssessment) -> tuple[int, float, float, str]:
     return (
         _DECISION_PRIORITY[candidate.decision],
         candidate.weighted_score,
