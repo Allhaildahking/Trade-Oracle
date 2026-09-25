@@ -86,9 +86,15 @@ def score_pair(
     *,
     events: list[EconomicEvent],
     news: list[NewsItem],
+    as_of: datetime | None = None,
 ) -> PairBias:
     if len(instrument) != 6 or not instrument.isalpha():
         raise ValueError("Pair must be a six-letter currency symbol.")
+    if as_of is not None and as_of.tzinfo is None:
+        raise ValueError("as_of must be timezone-aware")
+    if as_of is not None:
+        events = [event for event in events if event.timestamp <= as_of]
+        news = [item for item in news if item.timestamp <= as_of]
     base = score_currency(instrument[:3], events, news)
     quote = score_currency(instrument[3:], events, news)
     score = base.score - quote.score
@@ -147,4 +153,4 @@ def build_pair_bias(
         end=as_of,
         limit=100,
     )
-    return score_pair(pair, events=events, news=news_items)
+    return score_pair(pair, events=events, news=news_items, as_of=as_of)
