@@ -1,5 +1,6 @@
-import pytest
 from datetime import UTC, datetime
+
+import pytest
 from decimal import Decimal
 
 from app.analysis.fundamentals import score_pair
