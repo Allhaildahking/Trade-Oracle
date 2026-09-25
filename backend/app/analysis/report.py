@@ -37,4 +37,24 @@ def _format_assessment(index: int, assessment: PairAssessment) -> tuple[str, ...
         f"{index}. {assessment.instrument} | {assessment.decision} | "
         f"score={score} | direction={direction} | RR={rr}"
     )
-    return (summary, *assessment.reasons)
+    trade_lines = _format_trade_details(assessment)
+    return (summary, *trade_lines, *assessment.reasons)
+
+
+def _format_trade_details(assessment: PairAssessment) -> tuple[str, ...]:
+    if assessment.decision != "TRADE" or assessment.entry is None:
+        return ()
+
+    stop_loss = _format_decimal(assessment.stop_loss)
+    take_profit = _format_decimal(assessment.take_profit)
+    invalidation = _format_decimal(assessment.invalidation)
+    return (
+        f"  Entry: {_format_decimal(assessment.entry)}",
+        f"  SL: {stop_loss}",
+        f"  TP: {take_profit}",
+        f"  Invalidation: {invalidation}",
+    )
+
+
+def _format_decimal(value: object) -> str:
+    return str(value) if value is not None else "N/A"
