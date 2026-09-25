@@ -1,7 +1,5 @@
 """Finance Calendar economic-calendar adapter."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
