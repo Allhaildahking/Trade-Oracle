@@ -1,0 +1,45 @@
+name: Live Market Report
+
+on:
+  workflow_dispatch:
+
+jobs:
+  market-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project
+        run: python -m pip install -e .
+
+      - name: Run live market report
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import os
+
+          from app.analysis.market_runner import MarketRunner
+          from app.data.providers import build_oracle_runner
+          from app.delivery.telegram import TelegramSender
+          from app.delivery.telegram_report import TelegramReportPublisher
+
+          publisher = TelegramReportPublisher(
+              market_runner=MarketRunner(oracle=build_oracle_runner()),
+              sender=TelegramSender.from_environment(),
+          )
+
+          report, analyses = publisher.publish(os.environ["TELEGRAM_CHAT_ID"])
+
+          print(report)
+          print(f"Analyses completed: {len(analyses)}")
+          PY
