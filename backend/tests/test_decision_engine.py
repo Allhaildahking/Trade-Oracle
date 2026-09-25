@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from app.analysis.decision import DECISION_THRESHOLD, DecisionContext, decide
 from app.models.confirmation import Confirmation5M
+from app.models.fundamental import PairBias
 from app.models.risk import RiskValidation
 from app.models.setup import SetupCandidate
 from app.models.trade import TradeCandidate
@@ -122,3 +123,21 @@ def test_invalid_scores_are_rejected() -> None:
         assert "fundamental_score" in str(exc)
     else:
         raise AssertionError("invalid fundamental score was accepted")
+
+
+def test_decision_context_can_build_from_pair_bias() -> None:
+    pair_bias = PairBias(
+        instrument="EURUSD",
+        base=__import__("app.models.fundamental", fromlist=["CurrencyBias"]).CurrencyBias(
+            "EUR", Decimal("8"), ()
+        ),
+        quote=__import__("app.models.fundamental", fromlist=["CurrencyBias"]).CurrencyBias(
+            "USD", Decimal("0"), ()
+        ),
+        score=Decimal("8"),
+        direction="BUY",
+        evidence=(),
+    )
+    context = DecisionContext.from_pair_bias(pair_bias, technical_score=0.8)
+    assert context.fundamental_score == 0.8
+    assert context.weighted_score == 0.8
