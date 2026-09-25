@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 from app.analysis.fundamentals import fundamental_strength
 from app.core.constants import FUNDAMENTAL_WEIGHT, MINIMUM_RR, TECHNICAL_WEIGHT
-
 from app.models.confirmation import Confirmation5M
 from app.models.fundamental import PairBias
 from app.models.risk import RiskValidation
