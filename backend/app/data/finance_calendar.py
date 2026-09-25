@@ -1,7 +1,6 @@
-"""Finance Calendar economic-calendar adapter."""
+"""FXMacroData economic-calendar adapter."""
 
-from datetime import UTC, datetime  # noqa: I001
-from decimal import Decimal, InvalidOperation
+from datetime import UTC, datetime
 
 from app.data.base import EconomicCalendarProvider
 from app.data.http import ProviderError, get_json
@@ -9,54 +8,38 @@ from app.models.fundamental import EconomicEvent
 
 
 _COUNTRY_CURRENCY = {
-    "euro area": "EUR",
-    "united kingdom": "GBP",
-    "united states": "USD",
-    "japan": "JPY",
-    "switzerland": "CHF",
-    "canada": "CAD",
-    "australia": "AUD",
-    "new zealand": "NZD",
+    "euro area": "eur",
+    "united kingdom": "gbp",
+    "united states": "usd",
+    "japan": "jpy",
+    "switzerland": "chf",
+    "canada": "cad",
+    "australia": "aud",
+    "new zealand": "nzd",
 }
 
 
-def _decimal(value: object) -> Decimal | None:
-    if value in (None, "", "null"):
-        return None
-    try:
-        cleaned = str(value).replace(",", "").replace("%", "").strip()
-        return Decimal(cleaned)
-    except InvalidOperation:
-        return None
-
-
 def _parse_datetime(value: object) -> datetime:
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=UTC)
     text = str(value).replace("Z", "+00:00")
     parsed = datetime.fromisoformat(text)
     return parsed.replace(tzinfo=parsed.tzinfo or UTC).astimezone(UTC)
 
 
-def _currency(row: dict[str, object], country: str) -> str:
-    explicit = str(row.get("currency") or row.get("Currency") or "").upper()
-    return explicit or _COUNTRY_CURRENCY.get(country.lower(), "")
-
-
-def _country(row: dict[str, object]) -> str:
-    return str(row.get("country") or row.get("Country") or "")
-
-
 def _event_timestamp(row: dict[str, object]) -> datetime:
-    value = row.get("time_utc") or row.get("timestamp") or row.get("date")
-    if value is None:
-        raise ValueError("missing event timestamp")
-    return _parse_datetime(value)
+    for key in ("announcement_datetime", "release_datetime", "timestamp", "date"):
+        value = row.get(key)
+        if value is not None:
+            return _parse_datetime(value)
+    raise ValueError("missing event timestamp")
 
 
 class FinanceCalendarProvider(EconomicCalendarProvider):
-    """Fetch scheduled economic events from Finance Calendar's free API."""
+    """Fetch scheduled macro releases from FXMacroData's public calendar API."""
 
-    name = "financecalendar"
-    base_url = "https://www.financecalendar.com/wp-json/fc/v1"
+    name = "fxmacrodata"
+    base_url = "https://api.fxmacrodata.com/v1/calendar"
 
     def get_events(
         self,
@@ -75,52 +58,64 @@ class FinanceCalendarProvider(EconomicCalendarProvider):
         if end_utc < start_utc:
             raise ValueError("end must not be before start")
 
-        params: dict[str, str | int] = {
-            "from": start_utc.strftime("%Y-%m-%d"),
-            "to": end_utc.strftime("%Y-%m-%d"),
-            "limit": 500,
-        }
-        payload = get_json(f"{self.base_url}/calendar", params)
-        rows = payload.get("events", []) if isinstance(payload, dict) else payload
-        if not isinstance(rows, list):
-            raise ProviderError(f"Unexpected Finance Calendar response: {payload}")
+        currencies = tuple(
+            _COUNTRY_CURRENCY[country.lower()]
+            for country in countries
+            if country.lower() in _COUNTRY_CURRENCY
+        )
 
-        wanted = {country.lower() for country in countries}
         events: list[EconomicEvent] = []
-        for index, row in enumerate(rows):
-            if not isinstance(row, dict):
-                continue
-            country = _country(row)
-            if wanted and country and country.lower() not in wanted:
-                continue
-            try:
-                timestamp = _event_timestamp(row)
-            except (TypeError, ValueError):
-                continue
-            if timestamp < start_utc or timestamp > end_utc:
-                continue
-
-            title = str(row.get("title") or row.get("name") or row.get("event") or "")
-            event_key = str(
-                row.get("id")
-                or row.get("event_id")
-                or row.get("url")
-                or f"{timestamp.isoformat()}:{title}:{index}"
-            )
-            events.append(
-                EconomicEvent(
-                    event_id=event_key,
-                    country=country,
-                    currency=_currency(row, country),
-                    title=title,
-                    timestamp=timestamp,
-                    importance=str(row.get("impact") or row.get("importance") or ""),
-                    actual=_decimal(row.get("actual")),
-                    forecast=_decimal(row.get("consensus") or row.get("forecast")),
-                    previous=_decimal(row.get("prior") or row.get("previous")),
-                    unit=str(row.get("unit")) if row.get("unit") else None,
-                    source=self.name,
+        for currency in currencies:
+            payload = get_json(f"{self.base_url}/{currency}")
+            rows = payload.get("data", []) if isinstance(payload, dict) else payload
+            if not isinstance(rows, list):
+                raise ProviderError(
+                    f"Unexpected FXMacroData response for {currency}: {payload}"
                 )
-            )
+
+            for index, row in enumerate(rows):
+                if not isinstance(row, dict):
+                    continue
+                try:
+                    timestamp = _event_timestamp(row)
+                except (TypeError, ValueError):
+                    continue
+                if timestamp < start_utc or timestamp > end_utc:
+                    continue
+
+                indicator = str(
+                    row.get("indicator")
+                    or row.get("title")
+                    or row.get("name")
+                    or "Economic release"
+                )
+                event_id = str(
+                    row.get("event_id")
+                    or row.get("id")
+                    or f"{currency}:{timestamp.isoformat()}:{indicator}:{index}"
+                )
+                importance = str(
+                    row.get("importance")
+                    or row.get("impact")
+                    or ""
+                )
+                events.append(
+                    EconomicEvent(
+                        event_id=event_id,
+                        country=next(
+                            (
+                                country
+                                for country, code in _COUNTRY_CURRENCY.items()
+                                if code == currency
+                            ),
+                            "",
+                        ),
+                        currency=currency.upper(),
+                        title=indicator,
+                        timestamp=timestamp,
+                        importance=importance,
+                        source=self.name,
+                    )
+                )
 
         return sorted(events, key=lambda event: event.timestamp)
