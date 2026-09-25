@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.analysis.runner import OracleRunner
-from app.models.fundamental import EconomicEvent, NewsItem
+from app.models.fundamental import EconomicEvent
 from app.models.market import Candle, Quote
 
 
