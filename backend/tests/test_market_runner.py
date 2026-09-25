@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.analysis.market_runner import MarketRunner
+from app.analysis.rotation import RotationDecision
 from app.models.oracle import OracleAnalysis
 
 
@@ -47,6 +48,24 @@ def test_market_runner_executes_active_six_pair_universe() -> None:
     assert oracle.instruments == list(ACTIVE)
     assert tuple(item.instrument for item in analyses) == ACTIVE
     assert len(result.ranked) == 6
+
+
+def test_market_runner_uses_rotated_sixth_pair() -> None:
+    oracle = FakeOracle()
+    runner = MarketRunner(oracle=oracle)
+    rotation = RotationDecision(
+        active_instrument="AUDUSD",
+        evaluations=(),
+        changed=True,
+        reason="test rotation",
+    )
+
+    result, analyses = runner.scan(checked_at=CHECKED_AT, rotation=rotation)
+
+    expected = ("EURUSD", "GBPUSD", "USDJPY", "USDCHF", "XAUUSD", "AUDUSD")
+    assert result.active_instruments == expected
+    assert oracle.instruments == list(expected)
+    assert tuple(item.instrument for item in analyses) == expected
 
 
 def test_market_runner_rejects_naive_timestamp() -> None:
