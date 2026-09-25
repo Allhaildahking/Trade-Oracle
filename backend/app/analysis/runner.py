@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from dataclasses import dataclass
 
 from app.analysis.fundamentals import build_pair_bias
@@ -72,8 +72,8 @@ class OracleRunner:
             return ()
         events = self.calendar.get_events(
             countries=countries,
-            start=checked_at.replace(tzinfo=UTC),
-            end=checked_at.replace(tzinfo=UTC),
+            start=checked_at - timedelta(minutes=30),
+            end=checked_at + timedelta(minutes=30),
         )
         return tuple(events)
 
