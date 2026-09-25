@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-import re
 
 from app.data.base import EconomicCalendarProvider
 from app.data.http import ProviderError, get_json
@@ -41,9 +40,7 @@ def _parse_datetime(value: object) -> datetime:
 
 def _currency(row: dict[str, object], country: str) -> str:
     explicit = str(row.get("currency") or row.get("Currency") or "").upper()
-    if explicit:
-        return explicit
-    return _COUNTRY_CURRENCY.get(country.lower(), "")
+    return explicit or _COUNTRY_CURRENCY.get(country.lower(), "")
 
 
 def _country(row: dict[str, object]) -> str:
@@ -114,7 +111,7 @@ class FinanceCalendarProvider(EconomicCalendarProvider):
             )
             events.append(
                 EconomicEvent(
-                    event_id=re.sub(r"\\s+", "-", event_key).strip("-"),
+                    event_id=event_key,
                     country=country,
                     currency=_currency(row, country),
                     title=title,
