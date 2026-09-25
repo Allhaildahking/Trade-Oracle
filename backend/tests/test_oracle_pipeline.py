@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
-from types import SimpleNamespace
-from types import SimpleNamespace
+from app.models.market import Candle
 from decimal import Decimal
 
 from app.analysis.oracle import analyze_pair
@@ -88,13 +87,16 @@ def _risk() -> RiskValidation:
     )
 
 
-def _candle(instrument: str = "EURUSD", timeframe: str = "4H") -> SimpleNamespace:
-    return SimpleNamespace(instrument=instrument, timeframe=timeframe)
-
-
-def _candle(instrument: str = "EURUSD", timeframe: str = "4H") -> SimpleNamespace:
-    return SimpleNamespace(instrument=instrument, timeframe=timeframe)
-
+def _candle(instrument: str = "EURUSD", timeframe: str = "4H") -> Candle:
+    return Candle(
+        instrument=instrument,
+        timeframe=timeframe,
+        timestamp=datetime(2026, 9, 25, 8, tzinfo=UTC),
+        open=Decimal("1.1000"),
+        high=Decimal("1.1010"),
+        low=Decimal("1.0990"),
+        close=Decimal("1.1005"),
+    )
 
 def test_pipeline_connects_the_decision_chain(monkeypatch) -> None:
     import app.analysis.oracle as oracle
