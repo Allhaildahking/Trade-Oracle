@@ -7,16 +7,24 @@ from app.delivery.telegram import TelegramDeliveryError, TelegramSender
 
 
 class FakeTelegramResponse:
-    def __init__(self, payload: dict[str, object]) -> None:
+    def __init__(
+        self,
+        payload: dict[str, object],
+        *,
+        expected_chat_id: str = "-1001234567890",
+        expected_text: str = "TRADE ORACLE MARKET REPORT",
+    ) -> None:
         self.payload = payload
+        self.expected_chat_id = expected_chat_id
+        self.expected_text = expected_text
 
     def __call__(self, request: Request) -> bytes:
         assert request.full_url == "https://api.telegram.org/botTEST_TOKEN/sendMessage"
         assert request.method == "POST"
         assert request.get_header("Content-type") == "application/json"
         assert json.loads(request.data.decode("utf-8")) == {
-            "chat_id": "-1001234567890",
-            "text": "TRADE ORACLE MARKET REPORT",
+            "chat_id": self.expected_chat_id,
+            "text": self.expected_text,
         }
         return json.dumps(self.payload).encode("utf-8")
 
@@ -42,6 +50,8 @@ def test_telegram_sender_surfaces_telegram_rejection() -> None:
         bot_token="TEST_TOKEN",
         request_sender=FakeTelegramResponse(
             {"ok": False, "description": "chat not found"},
+            expected_chat_id="123",
+            expected_text="hello",
         ),
     )
 
