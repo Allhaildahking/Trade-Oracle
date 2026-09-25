@@ -105,3 +105,17 @@ def test_build_pair_bias_rejects_naive_timestamp() -> None:
             news=_NewsStub(),
             as_of=datetime(2026, 9, 25),
         )
+
+
+def test_fundamental_strength_normalizes_pair_bias() -> None:
+    from app.analysis.fundamentals import fundamental_strength
+
+    strong = score_pair(
+        "USDJPY",
+        events=[event("GDP", "10.0", "2.0") for _ in range(10)],
+        news=[],
+    )
+    neutral = score_pair("USDJPY", events=[], news=[])
+
+    assert fundamental_strength(strong) == 1.0
+    assert fundamental_strength(neutral) == 0.0
