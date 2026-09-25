@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
+import json
+import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -28,7 +28,7 @@ class TelegramSender:
     request_sender: RequestSender = urlopen
 
     @classmethod
-    def from_environment(cls) -> "TelegramSender":
+    def from_environment(cls) -> TelegramSender:
         token = os.getenv("TELEGRAM_BOT_TOKEN")
         if not token:
             raise ValueError("TELEGRAM_BOT_TOKEN is not set")
