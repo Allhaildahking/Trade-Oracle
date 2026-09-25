@@ -7,8 +7,10 @@ events contribute zero directional score rather than being guessed.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from app.data.base import EconomicCalendarProvider, NewsProvider
 from app.models.fundamental import CurrencyBias, EconomicEvent, NewsItem, PairBias
 
 INDICATOR_DIRECTION: dict[str, int] = {
@@ -94,3 +96,55 @@ def score_pair(
     return PairBias(
         instrument, base, quote, score, direction, base.evidence + quote.evidence
     )
+
+
+_CURRENCY_COUNTRIES = {
+    "EUR": "euro area",
+    "GBP": "united kingdom",
+    "USD": "united states",
+    "JPY": "japan",
+    "CHF": "switzerland",
+    "CAD": "canada",
+    "AUD": "australia",
+    "NZD": "new zealand",
+}
+
+
+def build_pair_bias(
+    instrument: str,
+    *,
+    calendar: EconomicCalendarProvider,
+    news: NewsProvider,
+    as_of: datetime | None = None,
+    lookback: timedelta = timedelta(days=7),
+    lookahead: timedelta = timedelta(days=3),
+) -> PairBias:
+    """Fetch a reproducible point-in-time fundamental view for one pair."""
+    if as_of is None:
+        as_of = datetime.now(UTC)
+    if as_of.tzinfo is None:
+        raise ValueError("as_of must be timezone-aware")
+    if lookback < timedelta(0) or lookahead < timedelta(0):
+        raise ValueError("lookback and lookahead must not be negative")
+    if len(instrument) != 6 or not instrument.isalpha():
+        raise ValueError("instrument must be a six-letter currency pair")
+
+    pair = instrument.upper()
+    currencies = (pair[:3], pair[3:])
+    countries = tuple(
+        _CURRENCY_COUNTRIES[currency]
+        for currency in currencies
+        if currency in _CURRENCY_COUNTRIES
+    )
+    events = calendar.get_events(
+        countries=countries,
+        start=as_of - lookback,
+        end=as_of + lookahead,
+    )
+    news_items = news.get_news(
+        currencies=currencies,
+        start=as_of - lookback,
+        end=as_of,
+        limit=100,
+    )
+    return score_pair(pair, events=events, news=news_items)
