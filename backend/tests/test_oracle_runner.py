@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from app.analysis.runner import OracleRunner
@@ -15,16 +15,24 @@ class FakeMarket:
 
     def get_candles(self, instrument, timeframe, *, start=None, end=None, limit=500):
         self.timeframes.append(timeframe)
+        interval = {
+            "4H": timedelta(hours=4),
+            "1H": timedelta(hours=1),
+            "15M": timedelta(minutes=15),
+            "5M": timedelta(minutes=5),
+        }[timeframe]
+        start = datetime(2026, 9, 20, 8, tzinfo=UTC)
         return [
             Candle(
                 instrument=instrument,
                 timeframe=timeframe,
-                timestamp=datetime(2026, 9, 25, 8, tzinfo=UTC),
+                timestamp=start + interval * index,
                 open=Decimal("1.1000"),
                 high=Decimal("1.1010"),
                 low=Decimal("1.0990"),
                 close=Decimal("1.1005"),
             )
+            for index in range(100)
         ]
 
     def get_quote(self, instrument):
