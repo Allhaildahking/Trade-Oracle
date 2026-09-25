@@ -73,3 +73,14 @@ def test_market_runner_rejects_naive_timestamp() -> None:
 
     with pytest.raises(ValueError, match="timezone-aware"):
         runner.scan(checked_at=datetime(2026, 9, 25, 8))
+
+def test_market_runner_renders_report_from_same_scan() -> None:
+    oracle = FakeOracle()
+    runner = MarketRunner(oracle=oracle)
+
+    report, analyses = runner.run_report(checked_at=CHECKED_AT)
+
+    assert "TRADE ORACLE MARKET REPORT" in report
+    assert "Active universe: EURUSD, GBPUSD, USDJPY, USDCHF, XAUUSD, USDCAD" in report
+    assert "1. EURUSD | NO_TRADE | score=0.500 | direction=N/A | RR=N/A" in report
+    assert tuple(item.instrument for item in analyses) == ACTIVE
