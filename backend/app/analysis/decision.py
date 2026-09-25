@@ -8,12 +8,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.analysis.fundamentals import fundamental_strength
 from app.core.constants import (
     FUNDAMENTAL_WEIGHT,
     MINIMUM_RR,
     TECHNICAL_WEIGHT,
 )
 from app.models.confirmation import Confirmation5M
+from app.models.fundamental import PairBias
 from app.models.risk import RiskValidation
 from app.models.setup import SetupCandidate
 from app.models.trade import TradeCandidate
@@ -25,14 +27,15 @@ DECISION_THRESHOLD = 0.60
 class DecisionContext:
     fundamental_score: float
     technical_score: float
+    pair_bias: PairBias | None = None
     news_blocked: bool = False
     setup: SetupCandidate | None = None
     confirmation: Confirmation5M | None = None
     trade: TradeCandidate | None = None
     risk: RiskValidation | None = None
 
-    @property
-    def weighted_score(self) -> float:
+    @classmethod
+    def from_pair_bias(\n        cls,\n        pair_bias: PairBias,\n        *,\n        technical_score: float,\n        **kwargs: object,\n    ) -> "DecisionContext":\n        return cls(\n            fundamental_score=fundamental_strength(pair_bias),\n            technical_score=technical_score,\n            pair_bias=pair_bias,\n            **kwargs,\n        )\n\n    @property\n    def weighted_score(self) -> float:
         return (
             self.fundamental_score * FUNDAMENTAL_WEIGHT
             + self.technical_score * TECHNICAL_WEIGHT
