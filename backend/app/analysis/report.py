@@ -38,7 +38,8 @@ def _format_assessment(index: int, assessment: PairAssessment) -> tuple[str, ...
         f"score={score} | direction={direction} | RR={rr}"
     )
     trade_lines = _format_trade_details(assessment)
-    return (summary, *trade_lines, *assessment.reasons)
+    reason_lines = tuple(f"  Reason: {reason}" for reason in assessment.reasons)
+    return (summary, *trade_lines, *reason_lines)
 
 
 def _format_trade_details(assessment: PairAssessment) -> tuple[str, ...]:
