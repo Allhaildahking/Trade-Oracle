@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from app.analysis.decision import DecisionContext, decide
 from app.analysis.rotation import RotationDecision
 from app.core.constants import CANDIDATE_INSTRUMENTS, CORE_INSTRUMENTS
 from app.models.market_scan import MarketScan, PairAssessment
-
-if TYPE_CHECKING:
-    from app.models.oracle import OracleAnalysis
 
 DEFAULT_ACTIVE_INSTRUMENTS = CORE_INSTRUMENTS + ("USDCAD",)
 
@@ -65,51 +60,6 @@ def _assessment(instrument: str, context: DecisionContext) -> PairAssessment:
         risk_reward=risk_reward,
         direction=direction,
         reasons=(f"decision={decision}", f"weighted_score={context.weighted_score:.3f}"),
-    )
-
-
-def scan_analyses(
-    analyses: tuple["OracleAnalysis", ...],
-    *,
-    active_instruments: tuple[str, ...] = DEFAULT_ACTIVE_INSTRUMENTS,
-) -> MarketScan:
-    """Rank completed Oracle analyses across the active universe."""
-    _validate_universe(active_instruments)
-    by_instrument: dict[str, OracleAnalysis] = {}
-    for analysis in analyses:
-        if analysis.instrument in by_instrument:
-            raise ValueError(f"duplicate scanner analysis: {analysis.instrument}")
-        by_instrument[analysis.instrument] = analysis
-
-    missing = tuple(item for item in active_instruments if item not in by_instrument)
-    if missing:
-        raise ValueError(f"missing scanner analyses: {', '.join(missing)}")
-
-    assessments = tuple(
-        _analysis_assessment(instrument, by_instrument[instrument])
-        for instrument in active_instruments
-    )
-    ranked = tuple(sorted(assessments, key=_ranking_key, reverse=True))
-    return MarketScan(
-        assessments=assessments,
-        ranked=ranked,
-        active_instruments=active_instruments,
-    )
-
-
-def _analysis_assessment(instrument: str, analysis: OracleAnalysis) -> PairAssessment:
-    trade = analysis.trade
-    return PairAssessment(
-        instrument=instrument,
-        decision=analysis.decision,
-        weighted_score=analysis.weighted_score,
-        risk_reward=(
-            float(trade.risk_reward)
-            if trade is not None and trade.risk_reward is not None
-            else None
-        ),
-        direction=trade.direction if trade is not None else None,
-        reasons=analysis.reasons,
     )
 
 
