@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+
 from app.analysis.confirmation_5m import confirm_5m
 from app.analysis.decision import DecisionContext, decide
 from app.analysis.risk import validate_trade
 from app.analysis.setup import detect_setup_candidate
 from app.analysis.structure import detect_structure
 from app.analysis.trade import construct_trade
+from app.models.confirmation import Confirmation5M
 from app.models.fundamental import EconomicEvent, PairBias
 from app.models.liquidity import LiquidityLevel
-from app.models.confirmation import Confirmation5M
 from app.models.market import Candle, Quote
 from app.models.oracle import OracleAnalysis
 from app.models.setup import SetupCandidate
