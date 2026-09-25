@@ -1,6 +1,6 @@
 """Finance Calendar economic-calendar adapter."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime  # noqa: I001
 from decimal import Decimal, InvalidOperation
 
 from app.data.base import EconomicCalendarProvider
