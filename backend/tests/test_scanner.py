@@ -15,7 +15,13 @@ ACTIVE = ("EURUSD", "GBPUSD", "USDJPY", "USDCHF", "XAUUSD", "USDCAD")
 CHECKED_AT = datetime(2026, 9, 25, 1, 0, tzinfo=UTC)
 
 
-def make_context(instrument: str, score: float, *, ready: bool = True, risk_decision: str = "TRADE") -> DecisionContext:
+def make_context(
+    instrument: str,
+    score: float,
+    *,
+    ready: bool = True,
+    risk_decision: str = "TRADE",
+) -> DecisionContext:
     setup_status = "CANDIDATE" if ready else "REJECTED"
     confirmation_status = "CONFIRMED" if ready else "REJECTED"
     trade_status = "VALID" if ready else "REJECTED"
