@@ -1,6 +1,3 @@
-from datetime import UTC, datetime
-from decimal import Decimal
-
 from app.analysis.report import render_market_scan
 from app.models.market_scan import MarketScan, PairAssessment
 
