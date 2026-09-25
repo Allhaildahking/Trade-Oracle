@@ -76,6 +76,10 @@ def _assessment(analysis: OracleAnalysis) -> PairAssessment:
             else None
         ),
         direction=trade.direction if trade is not None else None,
+        entry=trade.entry if trade is not None else None,
+        stop_loss=trade.stop_loss if trade is not None else None,
+        take_profit=trade.take_profit if trade is not None else None,
+        invalidation=trade.invalidation if trade is not None else None,
         reasons=analysis.reasons,
     )
 
