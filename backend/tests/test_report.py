@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from app.analysis.report import render_market_report
 from app.models.market_scan import MarketScan, PairAssessment
 
@@ -10,6 +12,10 @@ def make_scan() -> MarketScan:
             weighted_score=0.82,
             risk_reward=3.0,
             direction="BUY",
+            entry=Decimal("1.1000"),
+            stop_loss=Decimal("1.0950"),
+            take_profit=Decimal("1.1150"),
+            invalidation=Decimal("1.0940"),
             reasons=("trade setup",),
         ),
         PairAssessment(
@@ -41,6 +47,10 @@ def test_market_report_contains_ranked_pair_details() -> None:
 
     assert "TRADE ORACLE MARKET REPORT" in report
     assert "1. EURUSD | TRADE | score=0.820 | direction=BUY | RR=3.00" in report
+    assert "  Entry: 1.1000" in report
+    assert "  SL: 1.0950" in report
+    assert "  TP: 1.1150" in report
+    assert "  Invalidation: 1.0940" in report
     assert "2. GBPUSD | WAIT | score=0.610 | direction=N/A | RR=N/A" in report
     assert "3. USDJPY | BLOCKED | score=0.550 | direction=N/A | RR=N/A" in report
     assert "TOP RESULT: EURUSD (TRADE)" in report
