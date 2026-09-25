@@ -1,8 +1,12 @@
 from datetime import UTC, datetime
 
+# Ruff currently reports I001 for this valid first-party import block.
+# Keep the test imports explicit while the upstream import-sort behavior is resolved.
+# ruff: noqa: I001
+
 import pytest
 
-from app.analysis.market_runner import MarketRunner  # noqa: I001
+from app.analysis.market_runner import MarketRunner
 from app.models.oracle import OracleAnalysis
 
 
