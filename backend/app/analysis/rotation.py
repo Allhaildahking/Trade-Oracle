@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.constants import CANDIDATE_INSTRUMENTS, CORE_INSTRUMENTS
+from app.core.constants import CANDIDATE_INSTRUMENTS
 from app.models.candidate import CandidateEvaluation, CandidateStatus
 
 MIN_EVALUATION_DAYS = 7
