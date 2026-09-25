@@ -4,7 +4,8 @@ from decimal import Decimal
 import pytest
 
 from app.analysis.decision import DecisionContext
-from app.analysis.scanner import scan
+from app.analysis.rotation import RotationDecision
+from app.analysis.scanner import active_universe, scan
 from app.models.confirmation import Confirmation5M
 from app.models.market_scan import MarketScan
 from app.models.risk import RiskValidation
@@ -133,3 +134,39 @@ def test_scanner_rejects_missing_or_duplicate_contexts() -> None:
             tuple(make_context(pair, 0.8) for pair in ACTIVE) + (make_context("EURUSD", 0.7),),
             active_instruments=ACTIVE,
         )
+
+
+def test_scanner_uses_rotated_sixth_pair() -> None:
+    rotation = RotationDecision(
+        active_instrument="AUDUSD",
+        evaluations=(),
+        changed=True,
+        reason="AUDUSD promoted",
+    )
+    active = active_universe(rotation)
+    assert active == ("EURUSD", "GBPUSD", "USDJPY", "USDCHF", "XAUUSD", "AUDUSD")
+    assert "USDCAD" not in active
+
+
+def test_scanner_accepts_rotated_universe() -> None:
+    rotation = RotationDecision(
+        active_instrument="NZDUSD",
+        evaluations=(),
+        changed=True,
+        reason="NZDUSD promoted",
+    )
+    active = active_universe(rotation)
+    result = scan(tuple(make_context(pair, 0.8) for pair in active), active_instruments=active)
+    assert result.active_instruments == active
+    assert tuple(item.instrument for item in result.assessments) == active
+
+
+def test_scanner_rejects_invalid_rotated_pair() -> None:
+    rotation = RotationDecision(
+        active_instrument="GBPJPY",
+        evaluations=(),
+        changed=True,
+        reason="invalid",
+    )
+    with pytest.raises(ValueError, match="invalid rotated sixth pair"):
+        active_universe(rotation)
