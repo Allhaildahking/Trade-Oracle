@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
-from decimal import Decimal
 
 from app.analysis.fundamentals import score_pair
 from app.models.fundamental import EconomicEvent
