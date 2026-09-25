@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from app.analysis.report import render_market_report
 from app.analysis.rotation import RotationDecision
 from app.analysis.runner import OracleRunner
 from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS, active_universe
@@ -38,6 +39,16 @@ class MarketRunner:
             for instrument in instruments
         )
         return _build_scan(analyses, instruments), analyses
+
+    def run_report(
+        self,
+        *,
+        checked_at: datetime | None = None,
+        rotation: RotationDecision | None = None,
+    ) -> tuple[str, tuple[OracleAnalysis, ...]]:
+        """Run the market scan and render its report."""
+        scan, analyses = self.scan(checked_at=checked_at, rotation=rotation)
+        return render_market_report(scan), analyses
 
 
 def _build_scan(
