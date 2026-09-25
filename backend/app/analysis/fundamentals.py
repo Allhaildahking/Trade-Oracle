@@ -116,6 +116,13 @@ _CURRENCY_COUNTRIES = {
 }
 
 
+def fundamental_strength(pair_bias: PairBias) -> float:
+    """Normalize directional fundamental conviction to the decision layer's 0-1 scale."""
+    if pair_bias.direction == "NEUTRAL":
+        return 0.0
+    return float(min(Decimal("1"), abs(pair_bias.score) / Decimal("10")))
+
+
 def build_pair_bias(
     instrument: str,
     *,
