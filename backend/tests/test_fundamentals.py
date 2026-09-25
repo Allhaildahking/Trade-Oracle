@@ -30,6 +30,27 @@ def test_known_indicator_gets_directional_evidence() -> None:
     assert result.score > 0
 
 
+def test_score_pair_ignores_future_events_when_as_of_is_supplied() -> None:
+    historical = event("GDP", "3.0", "2.0")
+    future = EconomicEvent(
+        event_id="future",
+        country="United States",
+        currency="USD",
+        title="GDP",
+        timestamp=datetime(2026, 9, 26, tzinfo=UTC),
+        importance="High",
+        actual=Decimal("10.0"),
+        forecast=Decimal("2.0"),
+    )
+    result = score_pair(
+        "USDJPY",
+        events=[historical, future],
+        news=[],
+        as_of=datetime(2026, 9, 25, tzinfo=UTC),
+    )
+    assert result.score == Decimal("1.5")
+
+
 def test_unknown_indicator_does_not_get_guessed_direction() -> None:
     result = score_pair(
         "USDJPY",
