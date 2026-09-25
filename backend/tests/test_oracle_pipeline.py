@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
-from app.models.market import Candle
 from decimal import Decimal
 
 from app.analysis.oracle import analyze_pair
 from app.models.confirmation import Confirmation5M
 from app.models.fundamental import CurrencyBias, PairBias
+from app.models.market import Candle
 from app.models.regime import RegimeSnapshot
 from app.models.risk import RiskValidation
 from app.models.setup import SetupCandidate
