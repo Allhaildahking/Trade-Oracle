@@ -1,6 +1,6 @@
 """FXMacroData economic-calendar adapter."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime  # noqa: I001
 
 from app.data.base import EconomicCalendarProvider
 from app.data.http import ProviderError, get_json
