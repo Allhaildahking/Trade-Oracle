@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.analysis.market_runner import MarketRunner
+from app.analysis.market_runner import MarketRunner  # noqa: I001
 from app.models.oracle import OracleAnalysis
 
 
