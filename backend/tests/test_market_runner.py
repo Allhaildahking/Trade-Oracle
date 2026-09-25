@@ -82,5 +82,6 @@ def test_market_runner_renders_report_from_same_scan() -> None:
 
     assert "TRADE ORACLE MARKET REPORT" in report
     assert "Active universe: EURUSD, GBPUSD, USDJPY, USDCHF, XAUUSD, USDCAD" in report
-    assert "1. EURUSD | NO_TRADE | score=0.500 | direction=N/A | RR=N/A" in report
+    assert "1. XAUUSD | NO_TRADE | score=0.500 | direction=N/A | RR=N/A" in report
+    assert "6. EURUSD | NO_TRADE | score=0.500 | direction=N/A | RR=N/A" in report
     assert tuple(item.instrument for item in analyses) == ACTIVE
