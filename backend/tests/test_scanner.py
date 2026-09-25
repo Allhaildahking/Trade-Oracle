@@ -111,7 +111,7 @@ def test_scanner_ranks_by_decision_before_score() -> None:
 
 def test_scanner_never_promotes_no_trade_or_blocked() -> None:
     contexts = tuple(
-        make_context(pair, 0.99, ready=False, risk_decision="BLOCKED")
+        make_context(pair, 0.99, ready=False)
         for pair in ACTIVE
     )
     result = scan(contexts, active_instruments=ACTIVE)
