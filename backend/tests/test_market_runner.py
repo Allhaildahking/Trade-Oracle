@@ -2,8 +2,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.analysis.market_runner import MarketRunner
 from app.models.oracle import OracleAnalysis
+
+from app.analysis.market_runner import MarketRunner
 
 
 ACTIVE = ("EURUSD", "GBPUSD", "USDJPY", "USDCHF", "XAUUSD", "USDCAD")
