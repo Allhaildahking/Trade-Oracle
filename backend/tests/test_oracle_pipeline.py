@@ -4,7 +4,6 @@ from decimal import Decimal
 from app.analysis.oracle import analyze_pair
 from app.models.confirmation import Confirmation5M
 from app.models.fundamental import CurrencyBias, PairBias
-from app.models.liquidity import LiquiditySweep
 from app.models.regime import RegimeSnapshot
 from app.models.risk import RiskValidation
 from app.models.setup import SetupCandidate
@@ -111,8 +110,9 @@ def test_pipeline_connects_the_decision_chain(monkeypatch) -> None:
         "validate_trade",
         lambda **kwargs: _risk(),
     )
+    monkeypatch.setattr(oracle, "_setup_score", lambda setup: 0.65)
+    monkeypatch.setattr(oracle, "_technical_score", lambda setup, confirmation: 1.0)
 
-    candles = []
     result = oracle.analyze_pair(
         candles_4h=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "4H"})()],
         candles_1h=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "1H"})()],
@@ -123,8 +123,8 @@ def test_pipeline_connects_the_decision_chain(monkeypatch) -> None:
     )
 
     assert result.decision == "TRADE"
-    assert result.technical_score == 0.0
-    assert result.weighted_score == 0.408
+    assert result.technical_score == 1.0
+    assert result.weighted_score == 0.898
     assert result.setup is not None
     assert result.confirmation is not None
     assert result.trade is not None
