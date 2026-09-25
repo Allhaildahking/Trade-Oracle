@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from app.analysis.decision import DecisionContext, decide
+from app.analysis.rotation import RotationDecision
 from app.core.constants import CANDIDATE_INSTRUMENTS, CORE_INSTRUMENTS
 from app.models.market_scan import MarketScan, PairAssessment
-from app.analysis.rotation import RotationDecision
 
 DEFAULT_ACTIVE_INSTRUMENTS = CORE_INSTRUMENTS + ("USDCAD",)
 
