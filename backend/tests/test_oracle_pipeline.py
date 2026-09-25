@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from decimal import Decimal
 
 from app.analysis.oracle import analyze_pair
@@ -86,6 +87,10 @@ def _risk() -> RiskValidation:
     )
 
 
+def _candle(instrument: str = "EURUSD", timeframe: str = "4H") -> SimpleNamespace:
+    return SimpleNamespace(instrument=instrument, timeframe=timeframe)
+
+
 def test_pipeline_connects_the_decision_chain(monkeypatch) -> None:
     import app.analysis.oracle as oracle
 
@@ -114,10 +119,10 @@ def test_pipeline_connects_the_decision_chain(monkeypatch) -> None:
     monkeypatch.setattr(oracle, "_technical_score", lambda setup, confirmation: 1.0)
 
     result = oracle.analyze_pair(
-        candles_4h=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "4H"})()],
-        candles_1h=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "1H"})()],
-        candles_15m=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "15M"})()],
-        candles_5m=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "5M"})()],
+        candles_4h=[_candle(timeframe="4H")],
+        candles_1h=[_candle(timeframe="1H")],
+        candles_15m=[_candle(timeframe="15M")],
+        candles_5m=[_candle(timeframe="5M")],
         pair_bias=_bias(),
         checked_at=datetime(2026, 9, 25, 8, tzinfo=UTC),
     )
@@ -134,10 +139,10 @@ def test_pipeline_connects_the_decision_chain(monkeypatch) -> None:
 def test_pipeline_rejects_wrong_instrument() -> None:
     try:
         analyze_pair(
-            candles_4h=[type("CandleStub", (), {"instrument": "GBPUSD", "timeframe": "4H"})()],
-            candles_1h=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "1H"})()],
-            candles_15m=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "15M"})()],
-            candles_5m=[type("CandleStub", (), {"instrument": "EURUSD", "timeframe": "5M"})()],
+            candles_4h=[_candle("GBPUSD", "4H")],
+            candles_1h=[_candle(timeframe="1H")],
+            candles_15m=[_candle(timeframe="15M")],
+            candles_5m=[_candle(timeframe="5M")],
             pair_bias=_bias(),
             checked_at=datetime(2026, 9, 25, 8, tzinfo=UTC),
         )
