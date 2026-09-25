@@ -6,18 +6,12 @@ from app.data.finance_calendar import FinanceCalendarProvider
 
 def test_finance_calendar_maps_event_fields(monkeypatch):
     payload = {
-        "events": [
+        "data": [
             {
-                "id": "fomc-1",
-                "country": "United States",
-                "currency": "USD",
-                "title": "FOMC Rate Decision",
-                "time_utc": "2026-09-24T18:00:00+00:00",
-                "impact": "high",
-                "actual": None,
-                "consensus": "3.50",
-                "prior": "3.75",
-                "unit": "%",
+                "event_id": "fomc-1",
+                "indicator": "FOMC Rate Decision",
+                "announcement_datetime": 1790272800,
+                "importance": "high",
             }
         ]
     }
@@ -36,29 +30,22 @@ def test_finance_calendar_maps_event_fields(monkeypatch):
     assert event.currency == "USD"
     assert event.title == "FOMC Rate Decision"
     assert event.importance == "high"
-    assert event.forecast == 3.50
-    assert event.previous == 3.75
-    assert event.source == "financecalendar"
+    assert event.source == "fxmacrodata"
 
 
 def test_finance_calendar_filters_requested_countries(monkeypatch):
-    payload = {
-        "events": [
-            {
-                "country": "United States",
-                "currency": "USD",
-                "title": "US CPI",
-                "time_utc": "2026-09-24T12:00:00+00:00",
-            },
-            {
-                "country": "Japan",
-                "currency": "JPY",
-                "title": "BOJ",
-                "time_utc": "2026-09-24T13:00:00+00:00",
-            },
-        ]
-    }
-    monkeypatch.setattr(finance_calendar, "get_json", lambda *_args, **_kwargs: payload)
+    def fake_get_json(url, *_args, **_kwargs):
+        currency = url.rsplit("/", 1)[-1]
+        return {
+            "data": [
+                {
+                    "indicator": f"{currency.upper()} release",
+                    "announcement_datetime": 1790251200,
+                }
+            ]
+        }
+
+    monkeypatch.setattr(finance_calendar, "get_json", fake_get_json)
 
     events = FinanceCalendarProvider().get_events(
         countries=("japan",),
