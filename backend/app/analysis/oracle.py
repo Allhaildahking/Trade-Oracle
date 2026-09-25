@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
-
 from app.analysis.confirmation_5m import confirm_5m
 from app.analysis.decision import DecisionContext, decide
 from app.analysis.risk import validate_trade
@@ -13,8 +11,10 @@ from app.analysis.structure import detect_structure
 from app.analysis.trade import construct_trade
 from app.models.fundamental import EconomicEvent, PairBias
 from app.models.liquidity import LiquidityLevel
+from app.models.confirmation import Confirmation5M
 from app.models.market import Candle, Quote
 from app.models.oracle import OracleAnalysis
+from app.models.setup import SetupCandidate
 
 TECHNICAL_WEIGHTS = {
     "htf_structure": 0.20,
@@ -94,7 +94,10 @@ def analyze_pair(
     trade = construct_trade(setup=setup, confirmation=confirmation)
 
     fundamental_aligned = (
-        pair_bias.direction == setup.direction == confirmation.direction == trade.direction
+        pair_bias.direction
+        == setup.direction
+        == confirmation.direction
+        == trade.direction
     )
 
     risk = validate_trade(
@@ -133,7 +136,7 @@ def analyze_pair(
     )
 
 
-def _setup_score(setup) -> float:
+def _setup_score(setup: SetupCandidate) -> float:
     score = 0.0
     if setup.structure_events:
         score += TECHNICAL_WEIGHTS["htf_structure"]
@@ -146,7 +149,7 @@ def _setup_score(setup) -> float:
     return round(score, 4)
 
 
-def _technical_score(setup, confirmation) -> float:
+def _technical_score(setup: SetupCandidate, confirmation: Confirmation5M) -> float:
     score = _setup_score(setup)
     if confirmation.structure_events:
         score += TECHNICAL_WEIGHTS["confirmation_structure"]
