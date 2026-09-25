@@ -28,7 +28,11 @@ class MarketRunner:
         if now.tzinfo is None:
             raise ValueError("checked_at must be timezone-aware")
 
-        instruments = active_universe(rotation) if rotation is not None else DEFAULT_ACTIVE_INSTRUMENTS
+        instruments = (
+            active_universe(rotation)
+            if rotation is not None
+            else DEFAULT_ACTIVE_INSTRUMENTS
+        )
         analyses = tuple(
             self.oracle.analyze_pair(instrument, checked_at=now)
             for instrument in instruments
