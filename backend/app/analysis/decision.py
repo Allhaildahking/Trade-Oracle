@@ -35,55 +35,16 @@ class DecisionContext:
     risk: RiskValidation | None = None
 
     @classmethod
-    def from_pair_bias(\n        cls,\n        pair_bias: PairBias,\n        *,\n        technical_score: float,\n        **kwargs: object,\n    ) -> "DecisionContext":\n        return cls(\n            fundamental_score=fundamental_strength(pair_bias),\n            technical_score=technical_score,\n            pair_bias=pair_bias,\n            **kwargs,\n        )\n\n    @property\n    def weighted_score(self) -> float:
-        return (
-            self.fundamental_score * FUNDAMENTAL_WEIGHT
-            + self.technical_score * TECHNICAL_WEIGHT
+    def from_pair_bias(
+        cls,
+        pair_bias: PairBias,
+        *,
+        technical_score: float,
+        **kwargs: object,
+    ) -> "DecisionContext":
+        return cls(
+            fundamental_score=fundamental_strength(pair_bias),
+            technical_score=technical_score,
+            pair_bias=pair_bias,
+            **kwargs,
         )
-
-
-def decide(context: DecisionContext) -> str:
-    """Return one deterministic V1 decision.
-
-    Existing lower-level gates retain ownership of their checks. This function
-    only consolidates their outputs into the public decision vocabulary.
-    """
-    _validate_scores(context)
-
-    if context.news_blocked:
-        return "BLOCKED"
-
-    if context.risk is not None:
-        if context.risk.decision == "BLOCKED":
-            return "BLOCKED"
-        if context.risk.decision == "WAIT":
-            return "WAIT"
-
-    if context.setup is None or context.setup.status != "CANDIDATE":
-        return "NO_TRADE"
-
-    if context.confirmation is None or context.confirmation.status != "CONFIRMED":
-        return "WATCH"
-
-    if context.trade is None or context.trade.status != "VALID":
-        return "NO_TRADE"
-
-    if context.trade.risk_reward is None or context.trade.risk_reward < MINIMUM_RR:
-        return "NO_TRADE"
-
-    if context.risk is None or not context.risk.valid:
-        return "WAIT"
-
-    if context.weighted_score < DECISION_THRESHOLD:
-        return "NO_TRADE"
-
-    return "TRADE"
-
-
-def _validate_scores(context: DecisionContext) -> None:
-    for name, score in (
-        ("fundamental_score", context.fundamental_score),
-        ("technical_score", context.technical_score),
-    ):
-        if not 0.0 <= score <= 1.0:
-            raise ValueError(f"{name} must be between 0 and 1")
