@@ -1,0 +1,37 @@
+name: Telegram Delivery Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  telegram-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project
+        run: python -m pip install -e .
+
+      - name: Send Telegram test message
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import os
+
+          from app.delivery.telegram import TelegramSender
+
+          chat_id = os.environ["TELEGRAM_CHAT_ID"]
+          TelegramSender.from_environment().send_message(
+              chat_id,
+              "TRADE ORACLE\n\nTelegram delivery test successful.",
+          )
+          print("Telegram delivery test completed.")
+          PY
