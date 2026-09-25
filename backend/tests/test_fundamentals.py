@@ -31,7 +31,16 @@ def test_known_indicator_gets_directional_evidence() -> None:
 
 
 def test_score_pair_ignores_future_events_when_as_of_is_supplied() -> None:
-    historical = event("GDP", "3.0", "2.0")
+    historical = EconomicEvent(
+        event_id="historical",
+        country="United States",
+        currency="USD",
+        title="GDP",
+        timestamp=datetime(2026, 9, 24, tzinfo=UTC),
+        importance="High",
+        actual=Decimal("3.0"),
+        forecast=Decimal("2.0"),
+    )
     future = EconomicEvent(
         event_id="future",
         country="United States",
