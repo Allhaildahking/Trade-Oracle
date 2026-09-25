@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from app.analysis.decision import DECISION_THRESHOLD, DecisionContext, decide
 from app.models.confirmation import Confirmation5M
-from app.models.fundamental import PairBias
+from app.models.fundamental import CurrencyBias, PairBias
 from app.models.risk import RiskValidation
 from app.models.setup import SetupCandidate
 from app.models.trade import TradeCandidate
@@ -128,7 +128,7 @@ def test_invalid_scores_are_rejected() -> None:
 def test_decision_context_can_build_from_pair_bias() -> None:
     pair_bias = PairBias(
         instrument="EURUSD",
-        base=__import__("app.models.fundamental", fromlist=["CurrencyBias"]).CurrencyBias(
+        base=CurrencyBias(
             "EUR", Decimal("8"), ()
         ),
         quote=__import__("app.models.fundamental", fromlist=["CurrencyBias"]).CurrencyBias(
