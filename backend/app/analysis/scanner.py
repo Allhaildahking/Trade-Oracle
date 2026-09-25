@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.analysis.decision import DecisionContext, decide
 from app.analysis.rotation import RotationDecision
 from app.core.constants import CANDIDATE_INSTRUMENTS, CORE_INSTRUMENTS
 from app.models.market_scan import MarketScan, PairAssessment
+
+if TYPE_CHECKING:
+    from app.models.oracle import OracleAnalysis
 
 DEFAULT_ACTIVE_INSTRUMENTS = CORE_INSTRUMENTS + ("USDCAD",)
 
@@ -15,6 +20,8 @@ def active_universe(rotation: RotationDecision) -> tuple[str, ...]:
     if rotation.active_instrument not in CANDIDATE_INSTRUMENTS:
         raise ValueError(f"invalid rotated sixth pair: {rotation.active_instrument}")
     return CORE_INSTRUMENTS + (rotation.active_instrument,)
+
+
 _DECISION_PRIORITY = {"TRADE": 5, "WATCH": 4, "WAIT": 3, "NO_TRADE": 2, "BLOCKED": 1}
 
 
@@ -61,7 +68,6 @@ def _assessment(instrument: str, context: DecisionContext) -> PairAssessment:
     )
 
 
-
 def scan_analyses(
     analyses: tuple["OracleAnalysis", ...],
     *,
@@ -69,7 +75,7 @@ def scan_analyses(
 ) -> MarketScan:
     """Rank completed Oracle analyses across the active universe."""
     _validate_universe(active_instruments)
-    by_instrument: dict[str, "OracleAnalysis"] = {}
+    by_instrument: dict[str, OracleAnalysis] = {}
     for analysis in analyses:
         if analysis.instrument in by_instrument:
             raise ValueError(f"duplicate scanner analysis: {analysis.instrument}")
@@ -91,7 +97,7 @@ def scan_analyses(
     )
 
 
-def _analysis_assessment(instrument: str, analysis: "OracleAnalysis") -> PairAssessment:
+def _analysis_assessment(instrument: str, analysis: OracleAnalysis) -> PairAssessment:
     trade = analysis.trade
     return PairAssessment(
         instrument=instrument,
@@ -105,6 +111,7 @@ def _analysis_assessment(instrument: str, analysis: "OracleAnalysis") -> PairAss
         direction=trade.direction if trade is not None else None,
         reasons=analysis.reasons,
     )
+
 
 def _ranking_key(candidate: PairAssessment) -> tuple[int, float, float, str]:
     return (
