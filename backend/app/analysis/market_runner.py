@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from app.analysis.rotation import RotationDecision
 from app.analysis.runner import OracleRunner
-from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS
+from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS, active_universe
 from app.models.market_scan import MarketScan, PairAssessment
 from app.models.oracle import OracleAnalysis
 
@@ -21,25 +22,30 @@ class MarketRunner:
         self,
         *,
         checked_at: datetime | None = None,
+        rotation: RotationDecision | None = None,
     ) -> tuple[MarketScan, tuple[OracleAnalysis, ...]]:
         now = checked_at or datetime.now(UTC)
         if now.tzinfo is None:
             raise ValueError("checked_at must be timezone-aware")
 
+        instruments = active_universe(rotation) if rotation is not None else DEFAULT_ACTIVE_INSTRUMENTS
         analyses = tuple(
             self.oracle.analyze_pair(instrument, checked_at=now)
-            for instrument in DEFAULT_ACTIVE_INSTRUMENTS
+            for instrument in instruments
         )
-        return _build_scan(analyses), analyses
+        return _build_scan(analyses, instruments), analyses
 
 
-def _build_scan(analyses: tuple[OracleAnalysis, ...]) -> MarketScan:
+def _build_scan(
+    analyses: tuple[OracleAnalysis, ...],
+    instruments: tuple[str, ...],
+) -> MarketScan:
     assessments = tuple(_assessment(analysis) for analysis in analyses)
     ranked = tuple(sorted(assessments, key=_ranking_key, reverse=True))
     return MarketScan(
         assessments=assessments,
         ranked=ranked,
-        active_instruments=DEFAULT_ACTIVE_INSTRUMENTS,
+        active_instruments=instruments,
     )
 
 
