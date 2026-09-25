@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Literal
 
 CandidateDecision = Literal["TRADE", "WATCH", "WAIT", "NO_TRADE", "BLOCKED"]
@@ -15,6 +16,10 @@ class PairAssessment:
     weighted_score: float
     risk_reward: float | None
     direction: str | None
+    entry: Decimal | None = None
+    stop_loss: Decimal | None = None
+    take_profit: Decimal | None = None
+    invalidation: Decimal | None = None
     reasons: tuple[str, ...] = ()
 
 
