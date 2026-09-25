@@ -15,7 +15,7 @@ def render_market_report(scan: MarketScan) -> str:
     ]
 
     for index, assessment in enumerate(scan.ranked, start=1):
-        lines.append(_format_assessment(index, assessment))
+        lines.extend(_format_assessment(index, assessment))
 
     if scan.ranked:
         lines.extend(
@@ -29,11 +29,12 @@ def render_market_report(scan: MarketScan) -> str:
     return "\n".join(lines)
 
 
-def _format_assessment(index: int, assessment: PairAssessment) -> str:
+def _format_assessment(index: int, assessment: PairAssessment) -> tuple[str, ...]:
     direction = assessment.direction or "N/A"
     score = f"{assessment.weighted_score:.3f}"
     rr = f"{assessment.risk_reward:.2f}" if assessment.risk_reward is not None else "N/A"
-    return (
+    summary = (
         f"{index}. {assessment.instrument} | {assessment.decision} | "
         f"score={score} | direction={direction} | RR={rr}"
     )
+    return (summary, *assessment.reasons)
