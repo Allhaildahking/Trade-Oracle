@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from types import SimpleNamespace
 from decimal import Decimal
 
 from app.analysis.oracle import analyze_pair
@@ -85,6 +86,10 @@ def _risk() -> RiskValidation:
         reasons=("validated",),
         checked_at=datetime(2026, 9, 25, 8, tzinfo=UTC),
     )
+
+
+def _candle(instrument: str = "EURUSD", timeframe: str = "4H") -> SimpleNamespace:
+    return SimpleNamespace(instrument=instrument, timeframe=timeframe)
 
 
 def _candle(instrument: str = "EURUSD", timeframe: str = "4H") -> SimpleNamespace:
