@@ -5,8 +5,16 @@ from __future__ import annotations
 from app.analysis.decision import DecisionContext, decide
 from app.core.constants import CANDIDATE_INSTRUMENTS, CORE_INSTRUMENTS
 from app.models.market_scan import MarketScan, PairAssessment
+from app.analysis.rotation import RotationDecision
 
 DEFAULT_ACTIVE_INSTRUMENTS = CORE_INSTRUMENTS + ("USDCAD",)
+
+
+def active_universe(rotation: RotationDecision) -> tuple[str, ...]:
+    """Build the six-pair scanner universe from the current rotation decision."""
+    if rotation.active_instrument not in CANDIDATE_INSTRUMENTS:
+        raise ValueError(f"invalid rotated sixth pair: {rotation.active_instrument}")
+    return CORE_INSTRUMENTS + (rotation.active_instrument,)
 _DECISION_PRIORITY = {"TRADE": 5, "WATCH": 4, "WAIT": 3, "NO_TRADE": 2, "BLOCKED": 1}
 
 
