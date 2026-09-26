@@ -7,11 +7,11 @@ analysis layer.
 
 from __future__ import annotations
 
+from collections import deque
 from datetime import UTC, datetime
 from decimal import Decimal
 import os
 import time
-from collections import deque
 
 from app.data.base import MarketDataProvider
 from app.data.http import ProviderError, get_json
