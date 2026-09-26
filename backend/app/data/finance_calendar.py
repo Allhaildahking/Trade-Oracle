@@ -1,12 +1,14 @@
-"""Free public economic-calendar adapter."""
+"""Local economic-calendar feed adapter."""
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 from app.data.base import EconomicCalendarProvider
-from app.data.http import ProviderError, get_json
+from app.data.http import ProviderError
 from app.models.fundamental import EconomicEvent
 
 _CURRENCY_COUNTRY = {
@@ -21,11 +23,7 @@ _CURRENCY_COUNTRY = {
 }
 
 _COUNTRY_CURRENCY = {value: key for key, value in _CURRENCY_COUNTRY.items()}
-_FEEDS = (
-    "https://nfs.faireconomy.media/ff_calendar_prevweek.json",
-    "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
-    "https://nfs.faireconomy.media/ff_calendar_nextweek.json",
-)
+_DEFAULT_FEED_PATH = Path(__file__).resolve().parents[3] / "calendar" / "calendar.json"
 
 
 def _parse_datetime(value: object) -> datetime:
@@ -44,9 +42,12 @@ def _parse_decimal(value: object) -> Decimal | None:
 
 
 class FinanceCalendarProvider(EconomicCalendarProvider):
-    """Fetch scheduled macro releases from a public calendar JSON feed."""
+    """Read scheduled macro releases from the committed calendar feed."""
 
-    name = "fair_economy"
+    name = "forex_factory_feed"
+
+    def __init__(self, feed_path: Path | str = _DEFAULT_FEED_PATH) -> None:
+        self.feed_path = Path(feed_path)
 
     def get_events(
         self,
@@ -73,50 +74,58 @@ class FinanceCalendarProvider(EconomicCalendarProvider):
         if not requested:
             return []
 
+        try:
+            rows = json.loads(self.feed_path.read_text(encoding="utf-8"))
+        except FileNotFoundError as exc:
+            raise ProviderError(
+                f"Economic calendar feed not found: {self.feed_path}"
+            ) from exc
+        except json.JSONDecodeError as exc:
+            raise ProviderError(
+                f"Economic calendar feed is invalid JSON: {self.feed_path}"
+            ) from exc
+
+        if not isinstance(rows, list):
+            raise ProviderError("Economic calendar feed must contain a JSON list")
+
         events: list[EconomicEvent] = []
         seen: set[tuple[str, datetime, str]] = set()
 
-        for feed_url in _FEEDS:
-            payload = get_json(feed_url)
-            if not isinstance(payload, list):
-                raise ProviderError(
-                    f"Unexpected economic-calendar response: {payload}"
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+
+            currency = str(row.get("currency") or "").upper()
+            if currency not in requested:
+                continue
+
+            try:
+                timestamp = _parse_datetime(row["datetime_utc"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if timestamp < start_utc or timestamp > end_utc:
+                continue
+
+            title = str(row.get("event") or "Economic release")
+            event_key = (currency, timestamp, title)
+            if event_key in seen:
+                continue
+            seen.add(event_key)
+
+            events.append(
+                EconomicEvent(
+                    event_id=f"{currency}:{timestamp.isoformat()}:{title}",
+                    country=_CURRENCY_COUNTRY[currency],
+                    currency=currency,
+                    title=title,
+                    timestamp=timestamp,
+                    importance=str(row.get("impact") or ""),
+                    actual=_parse_decimal(row.get("actual")),
+                    forecast=_parse_decimal(row.get("forecast")),
+                    previous=_parse_decimal(row.get("previous")),
+                    source=self.name,
                 )
-
-            for row in payload:
-                if not isinstance(row, dict):
-                    continue
-
-                currency = str(row.get("country", "")).upper()
-                if currency not in requested:
-                    continue
-
-                try:
-                    timestamp = _parse_datetime(row["date"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-
-                if timestamp < start_utc or timestamp > end_utc:
-                    continue
-
-                title = str(row.get("title") or "Economic release")
-                event_key = (currency, timestamp, title)
-                if event_key in seen:
-                    continue
-                seen.add(event_key)
-
-                events.append(
-                    EconomicEvent(
-                        event_id=f"{currency}:{timestamp.isoformat()}:{title}",
-                        country=_CURRENCY_COUNTRY[currency],
-                        currency=currency,
-                        title=title,
-                        timestamp=timestamp,
-                        importance=str(row.get("impact") or ""),
-                        forecast=_parse_decimal(row.get("forecast")),
-                        previous=_parse_decimal(row.get("previous")),
-                        source=self.name,
-                    )
-                )
+            )
 
         return sorted(events, key=lambda event: event.timestamp)
