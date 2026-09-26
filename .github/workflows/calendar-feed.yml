@@ -1,0 +1,94 @@
+name: Refresh Economic Calendar Feed
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-calendar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Trade Oracle
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Clone open-source calendar scraper
+        run: git clone --depth 1 https://github.com/joor0x/forex-factory-agent-feed.git calendar-source
+
+      - name: Install scraper dependencies
+        run: python -m pip install -r calendar-source/requirements.txt
+
+      - name: Scrape current and next month
+        working-directory: calendar-source
+        run: |
+          python scraper.py scrape \
+            --months this next \
+            --format json \
+            --output-dir ../calendar-build \
+            --timezone UTC \
+            --currencies USD EUR GBP JPY CHF CAD AUD NZD \
+            --impacts red orange yellow gray
+
+      - name: Validate calendar feed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path("calendar-build/calendar.json")
+          if not source.exists():
+              raise SystemExit("calendar-build/calendar.json was not created")
+
+          rows = json.loads(source.read_text(encoding="utf-8"))
+          if not isinstance(rows, list) or not rows:
+              raise SystemExit("Calendar feed is empty")
+
+          required = {
+              "currency",
+              "impact",
+              "impact_level",
+              "event",
+              "actual",
+              "forecast",
+              "previous",
+              "datetime_utc",
+              "scraped_at",
+          }
+          allowed = {"USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"}
+
+          for row in rows:
+              missing = required - row.keys()
+              if missing:
+                  raise SystemExit(f"Missing fields: {sorted(missing)}")
+              if row["currency"] not in allowed:
+                  raise SystemExit(f"Unexpected currency: {row['currency']}")
+
+          print(f"Validated {len(rows)} calendar events")
+          PY
+
+      - name: Publish calendar feed
+        run: |
+          mkdir -p calendar
+          cp calendar-build/calendar.json calendar/calendar.json
+
+      - name: Commit updated feed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add calendar/calendar.json
+          if git diff --cached --quiet; then
+            echo "Calendar feed unchanged."
+          else
+            git commit -m "chore: refresh economic calendar feed"
+            git push
+          fi
