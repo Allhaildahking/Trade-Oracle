@@ -10,6 +10,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 import os
+import time
+from collections import deque
 
 from app.data.base import MarketDataProvider
 from app.data.http import ProviderError, get_json
@@ -33,6 +35,9 @@ INSTRUMENT_MAP = {
     "XAUUSD": "XAU/USD",
 }
 
+_CREDIT_LIMIT = 8
+_CREDIT_WINDOW_SECONDS = 60.0
+
 
 def _decimal(value: object) -> Decimal:
     return Decimal(str(value))
@@ -49,6 +54,21 @@ class TwelveDataProvider(MarketDataProvider):
         self.api_key = api_key or os.getenv("TWELVE_DATA_API_KEY", "")
         if not self.api_key:
             raise ProviderError("TWELVE_DATA_API_KEY is not configured.")
+        self._credit_times: deque[float] = deque()
+
+    def _wait_for_credit(self) -> None:
+        now = time.monotonic()
+        cutoff = now - _CREDIT_WINDOW_SECONDS
+        while self._credit_times and self._credit_times[0] <= cutoff:
+            self._credit_times.popleft()
+
+        if len(self._credit_times) >= _CREDIT_LIMIT:
+            wait_for = _CREDIT_WINDOW_SECONDS - (now - self._credit_times[0])
+            time.sleep(max(wait_for, 0.0))
+            self._wait_for_credit()
+            return
+
+        self._credit_times.append(now)
 
     def get_candles(
         self,
@@ -73,6 +93,7 @@ class TwelveDataProvider(MarketDataProvider):
         if end:
             params["end_date"] = end.astimezone(UTC).isoformat()
 
+        self._wait_for_credit()
         payload = get_json("https://api.twelvedata.com/time_series", params)
         if not isinstance(payload, dict) or payload.get("status") != "ok":
             raise ProviderError(f"Unexpected Twelve Data response: {payload}")
@@ -98,6 +119,7 @@ class TwelveDataProvider(MarketDataProvider):
     def get_quote(self, instrument: str) -> Quote:
         if instrument not in INSTRUMENT_MAP:
             raise ValueError(f"Unsupported instrument: {instrument}")
+        self._wait_for_credit()
         payload = get_json(
             "https://api.twelvedata.com/quote",
             {"symbol": INSTRUMENT_MAP[instrument], "apikey": self.api_key},
