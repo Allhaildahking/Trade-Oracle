@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from decimal import Decimal
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from app.data.base import EconomicCalendarProvider
