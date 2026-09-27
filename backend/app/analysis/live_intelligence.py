@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import re
 from decimal import Decimal
+import re
 
 from app.models.fundamental import NewsItem
 from app.models.live_intelligence import LiveEventType, LiveImpact, LiveIntelligence
