@@ -5,6 +5,7 @@ import pytest
 
 from app.analysis.fundamentals import score_pair
 from app.models.fundamental import EconomicEvent
+from app.models.live_intelligence import LiveIntelligence
 
 
 def event(title: str, actual: str, forecast: str) -> EconomicEvent:
@@ -17,6 +18,24 @@ def event(title: str, actual: str, forecast: str) -> EconomicEvent:
         importance="High",
         actual=Decimal(actual),
         forecast=Decimal(forecast),
+    )
+
+
+def intelligence(
+    impact: str,
+    confidence: float,
+    timestamp: datetime = datetime(2026, 9, 25, tzinfo=UTC),
+) -> LiveIntelligence:
+    return LiveIntelligence(
+        news_id="live-1",
+        timestamp=timestamp,
+        title="Fed signals policy change",
+        source_name="Reuters",
+        currencies=("USD",),
+        event_type="CENTRAL_BANK",
+        policy_implication="Potential monetary-policy change.",
+        market_impact=impact,
+        confidence=confidence,
     )
 
 
@@ -68,6 +87,48 @@ def test_unknown_indicator_does_not_get_guessed_direction() -> None:
     )
     assert result.direction == "NEUTRAL"
     assert result.score == 0
+
+
+def test_live_intelligence_contributes_to_matching_currency() -> None:
+    result = score_pair(
+        "USDJPY",
+        events=[],
+        news=[],
+        live_intelligence=(intelligence("POSITIVE", 0.8),),
+    )
+
+    assert result.score == Decimal("0.8")
+    assert result.direction == "BUY"
+    assert any("Live: Fed signals policy change" in evidence for evidence in result.evidence)
+
+
+def test_live_intelligence_does_not_affect_unrelated_pair() -> None:
+    result = score_pair(
+        "EURJPY",
+        events=[],
+        news=[],
+        live_intelligence=(intelligence("POSITIVE", 0.8),),
+    )
+
+    assert result.score == Decimal("0")
+    assert result.direction == "NEUTRAL"
+
+
+def test_live_intelligence_respects_as_of_timestamp() -> None:
+    future = intelligence(
+        "POSITIVE",
+        0.8,
+        timestamp=datetime(2026, 9, 26, tzinfo=UTC),
+    )
+    result = score_pair(
+        "USDJPY",
+        events=[],
+        news=[],
+        live_intelligence=(future,),
+        as_of=datetime(2026, 9, 25, tzinfo=UTC),
+    )
+
+    assert result.score == Decimal("0")
 
 
 class _CalendarStub:
