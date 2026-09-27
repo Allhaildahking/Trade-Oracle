@@ -8,16 +8,58 @@ from app.models.fundamental import NewsItem
 from app.models.live_intelligence import LiveEventType, LiveImpact, LiveIntelligence
 
 _EVENT_RULES: tuple[tuple[LiveEventType, tuple[str, ...]], ...] = (
-    ("CENTRAL_BANK", ("fed", "fomc", "ecb", "lagarde", "boe", "bank of england", "boj", "bank of japan", "snb", "bank of canada", "rba", "rbnz")),
-    ("TRADE_POLICY", ("tariff", "trade deal", "trade war", "export ban", "import ban", "sanction")),
-    ("GEOPOLITICAL", ("war", "ceasefire", "missile", "invasion", "attack", "conflict", "military")),
+    (
+        "CENTRAL_BANK",
+        (
+            "fed",
+            "fomc",
+            "ecb",
+            "lagarde",
+            "boe",
+            "bank of england",
+            "boj",
+            "bank of japan",
+            "snb",
+            "bank of canada",
+            "rba",
+            "rbnz",
+        ),
+    ),
+    (
+        "TRADE_POLICY",
+        ("tariff", "trade deal", "trade war", "export ban", "import ban", "sanction"),
+    ),
+    (
+        "GEOPOLITICAL",
+        ("war", "ceasefire", "missile", "invasion", "attack", "conflict", "military"),
+    ),
     ("GOVERNMENT", ("government", "treasury", "finance ministry", "budget")),
-    ("POLITICS", ("president", "prime minister", "election", "congress", "parliament")),
-    ("MACRO", ("inflation", "cpi", "jobs", "employment", "gdp", "pmi", "retail sales")),
+    (
+        "POLITICS",
+        ("president", "prime minister", "election", "congress", "parliament"),
+    ),
+    (
+        "MACRO",
+        ("inflation", "cpi", "jobs", "employment", "gdp", "pmi", "retail sales"),
+    ),
 )
 
-_POSITIVE_RULES = ("hawkish", "rate hike", "higher rates", "less easing", "tightening", "stronger growth")
-_NEGATIVE_RULES = ("dovish", "rate cut", "lower rates", "more easing", "easing", "weaker growth")
+_POSITIVE_RULES = (
+    "hawkish",
+    "rate hike",
+    "higher rates",
+    "less easing",
+    "tightening",
+    "stronger growth",
+)
+_NEGATIVE_RULES = (
+    "dovish",
+    "rate cut",
+    "lower rates",
+    "more easing",
+    "easing",
+    "weaker growth",
+)
 _MIXED_RULES = ("uncertainty", "unclear", "mixed", "split", "volatile")
 
 _CURRENCY_NAMES = {
@@ -34,7 +76,14 @@ _CURRENCY_NAMES = {
 
 def _matches(text: str, terms: tuple[str, ...]) -> tuple[str, ...]:
     lowered = text.lower()
-    return tuple(term for term in terms if re.search(r"(?<!\\w)" + re.escape(term) + r"(?!\\w)", lowered))
+    return tuple(
+        term
+        for term in terms
+        if re.search(
+            r"(?<!\w)" + re.escape(term) + r"(?!\w)",
+            lowered,
+        )
+    )
 
 
 def _event_type(text: str) -> LiveEventType:
