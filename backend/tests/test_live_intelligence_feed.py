@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
-from app.analysis.live_intelligence_feed import LiveIntelligenceFeed
 from app.analysis.live_intelligence_buffer import LiveIntelligenceBuffer
+from app.analysis.live_intelligence_feed import LiveIntelligenceFeed
 from app.models.fundamental import NewsItem
 
 
