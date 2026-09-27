@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 
 from app.models.fundamental import NewsItem
 from app.models.live_intelligence import LiveEventType, LiveImpact, LiveIntelligence
@@ -161,3 +162,30 @@ def classify_live_news(item: NewsItem) -> LiveIntelligence:
         confidence=confidence,
         evidence=evidence,
     )
+
+
+_LIVE_IMPACT_SCORE: dict[LiveImpact, Decimal] = {
+    "POSITIVE": Decimal("1"),
+    "NEGATIVE": Decimal("-1"),
+    "MIXED": Decimal("0"),
+    "NEUTRAL": Decimal("0"),
+}
+
+
+def score_live_intelligence(
+    intelligence: LiveIntelligence,
+    currency: str,
+) -> Decimal:
+    """Return a bounded directional contribution for one currency."""
+    if currency.upper() not in intelligence.currencies:
+        return Decimal("0")
+
+    impact = _LIVE_IMPACT_SCORE[intelligence.market_impact]
+    if impact == 0:
+        return Decimal("0")
+
+    confidence = max(
+        Decimal("0"),
+        min(Decimal("1"), Decimal(str(intelligence.confidence))),
+    )
+    return impact * confidence
