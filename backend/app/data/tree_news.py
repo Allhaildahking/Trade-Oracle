@@ -21,12 +21,14 @@ _CURRENCY_PATTERNS = {
     "JPY": re.compile(r"\b(?:jpy|yen|boj|bank of japan)\b", re.IGNORECASE),
     "CHF": re.compile(r"\b(?:chf|franc|snb|swiss)\b", re.IGNORECASE),
     "CAD": re.compile(r"\b(?:cad|canadian dollar|bank of canada)\b", re.IGNORECASE),
-    "AUD": re.compile(r"\b(?:aud|australian dollar|rba|reserve bank of australia)\b", re.IGNORECASE),
-    "NZD": re.compile(r"\b(?:nzd|new zealand dollar|rbnz|reserve bank of new zealand)\b", re.IGNORECASE),
-}
-
-
-def _timestamp(value: object) -> datetime:
+    "AUD": re.compile(
+        r"\b(?:aud|australian dollar|rba|reserve bank of australia)\b",
+        re.IGNORECASE,
+    ),
+    "NZD": re.compile(
+        r"\b(?:nzd|new zealand dollar|rbnz|reserve bank of new zealand)\b",
+        re.IGNORECASE,
+    ),
     try:
         return datetime.fromtimestamp(float(value) / 1000, tz=UTC)
     except (TypeError, ValueError, OverflowError, OSError) as exc:
