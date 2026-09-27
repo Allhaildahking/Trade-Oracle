@@ -29,8 +29,11 @@ _CURRENCY_PATTERNS = {
         r"\b(?:nzd|new zealand dollar|rbnz|reserve bank of new zealand)\b",
         re.IGNORECASE,
     ),
-    try:
 }
+
+
+def _timestamp(value: object) -> datetime:
+    try
         return datetime.fromtimestamp(float(value) / 1000, tz=UTC)
     except (TypeError, ValueError, OverflowError, OSError) as exc:
         raise ValueError("Tree News payload has an invalid timestamp") from exc
