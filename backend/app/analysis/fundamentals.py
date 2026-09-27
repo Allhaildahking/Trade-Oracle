@@ -10,8 +10,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from app.analysis.live_intelligence import score_live_intelligence
 from app.data.base import EconomicCalendarProvider, NewsProvider
 from app.models.fundamental import CurrencyBias, EconomicEvent, NewsItem, PairBias
+from app.models.live_intelligence import LiveIntelligence
 
 INDICATOR_DIRECTION: dict[str, int] = {
     "inflation": 1,
@@ -59,6 +61,7 @@ def score_currency(
     currency: str,
     events: list[EconomicEvent],
     news: list[NewsItem],
+    live_intelligence: tuple[LiveIntelligence, ...] = (),
 ) -> CurrencyBias:
     score = Decimal("0")
     evidence: list[str] = []
@@ -77,6 +80,15 @@ def score_currency(
         score += item.sentiment_score
         evidence.append(f"News: {item.title} ({item.sentiment_label or 'unlabelled'})")
 
+    for intelligence in live_intelligence:
+        contribution = score_live_intelligence(intelligence, currency)
+        if contribution:
+            score += contribution
+            evidence.append(
+                f"Live: {intelligence.title} ({intelligence.market_impact}, "
+                f"confidence={intelligence.confidence:.2f})"
+            )
+
     score = max(Decimal("-10"), min(Decimal("10"), score))
     return CurrencyBias(currency.upper(), score, tuple(evidence[-10:]))
 
@@ -86,6 +98,7 @@ def score_pair(
     *,
     events: list[EconomicEvent],
     news: list[NewsItem],
+    live_intelligence: tuple[LiveIntelligence, ...] = (),
     as_of: datetime | None = None,
 ) -> PairBias:
     if len(instrument) != 6 or not instrument.isalpha():
@@ -95,8 +108,11 @@ def score_pair(
     if as_of is not None:
         events = [event for event in events if event.timestamp <= as_of]
         news = [item for item in news if item.timestamp <= as_of]
-    base = score_currency(instrument[:3], events, news)
-    quote = score_currency(instrument[3:], events, news)
+        live_intelligence = tuple(
+            item for item in live_intelligence if item.timestamp <= as_of
+        )
+    base = score_currency(instrument[:3], events, news, live_intelligence)
+    quote = score_currency(instrument[3:], events, news, live_intelligence)
     score = base.score - quote.score
     direction = "BUY" if score > 0 else "SELL" if score < 0 else "NEUTRAL"
     return PairBias(
@@ -128,6 +144,7 @@ def build_pair_bias(
     *,
     calendar: EconomicCalendarProvider,
     news: NewsProvider,
+    live_intelligence: tuple[LiveIntelligence, ...] = (),
     as_of: datetime | None = None,
     lookback: timedelta = timedelta(days=7),
     lookahead: timedelta = timedelta(days=3),
@@ -160,4 +177,10 @@ def build_pair_bias(
         end=as_of,
         limit=100,
     )
-    return score_pair(pair, events=events, news=news_items, as_of=as_of)
+    return score_pair(
+        pair,
+        events=events,
+        news=news_items,
+        live_intelligence=live_intelligence,
+        as_of=as_of,
+    )
