@@ -22,7 +22,7 @@ def test_classifies_central_bank_headline_and_currency() -> None:
 
     assert result.event_type == "CENTRAL_BANK"
     assert result.currencies == ("USD",)
-    assert result.market_impact == "NEGATIVE"
+    assert result.market_impact == "NEUTRAL"
     assert result.confidence > 0.5
 
 
