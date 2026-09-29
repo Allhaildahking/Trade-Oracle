@@ -1,13 +1,9 @@
-"""Shared live-market evidence snapshot for one Oracle scan.
-
-The snapshot is intentionally immutable. Providers are queried once per
-instrument and the resulting evidence is reused by the pair analyses.
-"""
+"""Shared live-market evidence snapshot for one Oracle scan."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.core.constants import TIMEFRAMES
 from app.data.base import EconomicCalendarProvider, MarketDataProvider, NewsProvider
@@ -70,14 +66,14 @@ class LiveMarketSnapshotBuilder:
             events = tuple(
                 self.calendar.get_events(
                     countries=countries,
-                    start=checked_at - _EVENT_LOOKBACK,
-                    end=checked_at + _EVENT_LOOKAHEAD,
+                    start=checked_at - timedelta(minutes=30),
+                    end=checked_at + timedelta(minutes=30),
                 )
             )
             news = tuple(
                 self.news.get_news(
                     currencies=currencies,
-                    start=checked_at - _NEWS_LOOKBACK,
+                    start=checked_at - timedelta(days=7),
                     end=checked_at,
                     limit=100,
                 )
@@ -105,11 +101,6 @@ class LiveMarketSnapshotBuilder:
             instruments=instruments,
             markets=markets,
         )
-
-
-_EVENT_LOOKBACK = __import__("datetime").timedelta(minutes=30)
-_EVENT_LOOKAHEAD = __import__("datetime").timedelta(minutes=30)
-_NEWS_LOOKBACK = __import__("datetime").timedelta(days=7)
 
 
 _CURRENCY_COUNTRIES = {
