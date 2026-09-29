@@ -55,29 +55,37 @@ class LiveMarketSnapshotBuilder:
         if len(set(instruments)) != len(instruments):
             raise ValueError("instruments must be unique")
 
+        all_currencies = tuple(
+            dict.fromkeys(
+                currency
+                for instrument in instruments
+                for currency in _instrument_currencies(instrument)
+            )
+        )
+        all_countries = tuple(
+            _CURRENCY_COUNTRIES[currency]
+            for currency in all_currencies
+            if currency in _CURRENCY_COUNTRIES
+        )
+        all_events = tuple(
+            self.calendar.get_events(
+                countries=all_countries,
+                start=checked_at - timedelta(minutes=30),
+                end=checked_at + timedelta(minutes=30),
+            )
+        )
+        all_news = tuple(
+            self.news.get_news(
+                currencies=all_currencies,
+                start=checked_at - timedelta(days=7),
+                end=checked_at,
+                limit=100,
+            )
+        )
+
         markets: dict[str, InstrumentSnapshot] = {}
         for instrument in instruments:
             currencies = _instrument_currencies(instrument)
-            countries = tuple(
-                _CURRENCY_COUNTRIES[currency]
-                for currency in currencies
-                if currency in _CURRENCY_COUNTRIES
-            )
-            events = tuple(
-                self.calendar.get_events(
-                    countries=countries,
-                    start=checked_at - timedelta(minutes=30),
-                    end=checked_at + timedelta(minutes=30),
-                )
-            )
-            news = tuple(
-                self.news.get_news(
-                    currencies=currencies,
-                    start=checked_at - timedelta(days=7),
-                    end=checked_at,
-                    limit=100,
-                )
-            )
             candles = {
                 timeframe: tuple(
                     self.market.get_candles(
@@ -92,8 +100,16 @@ class LiveMarketSnapshotBuilder:
                 instrument=instrument,
                 candles=candles,
                 quote=self.market.get_quote(instrument),
-                events=events,
-                news=news,
+                events=tuple(
+                    event
+                    for event in all_events
+                    if event.currency.upper() in currencies
+                ),
+                news=tuple(
+                    item
+                    for item in all_news
+                    if set(item.currencies).intersection(currencies)
+                ),
             )
 
         return LiveMarketSnapshot(
