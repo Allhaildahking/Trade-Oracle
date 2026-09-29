@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 
 from app.analysis.report import render_market_report
 from app.analysis.rotation import RotationDecision
-from app.data.live_snapshot import LiveMarketSnapshotBuilder
 from app.analysis.runner import OracleRunner
+from app.data.live_snapshot import LiveMarketSnapshotBuilder
 from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS, active_universe
 from app.models.market_scan import MarketScan, PairAssessment
 from app.models.oracle import OracleAnalysis
