@@ -46,6 +46,19 @@ class OracleRunner:
             pair_bias = self._pair_bias_from_snapshot(
                 instrument, evidence, now
             )
+            stale_reasons = _snapshot_staleness_reasons(evidence, now)
+            if stale_reasons:
+                return OracleAnalysis(
+                    instrument=instrument,
+                    decision="BLOCKED",
+                    technical_score=0.0,
+                    weighted_score=0.0,
+                    setup=None,
+                    confirmation=None,
+                    trade=None,
+                    risk=None,
+                    reasons=tuple(stale_reasons),
+                )
             events = tuple(
                 event for event in evidence.events if event.timestamp <= now
             )
@@ -109,6 +122,39 @@ class OracleRunner:
             end=checked_at + timedelta(minutes=30),
         )
         return tuple(events)
+
+
+_MAX_CANDLE_AGE = {
+    "4H": timedelta(hours=6),
+    "1H": timedelta(hours=2),
+    "15M": timedelta(minutes=30),
+    "5M": timedelta(minutes=10),
+}
+_MAX_QUOTE_AGE = timedelta(minutes=2)
+
+
+def _snapshot_staleness_reasons(
+    evidence: InstrumentSnapshot,
+    checked_at: datetime,
+) -> tuple[str, ...]:
+    reasons: list[str] = []
+    for timeframe, max_age in _MAX_CANDLE_AGE.items():
+        candles = evidence.candles.get(timeframe)
+        if not candles:
+            reasons.append(f"BLOCKED: missing {timeframe} market data")
+            continue
+        latest = max(candles, key=lambda candle: candle.timestamp)
+        age = checked_at - latest.timestamp
+        if age > max_age:
+            reasons.append(
+                f"BLOCKED: stale {timeframe} data ({int(age.total_seconds() // 60)}m old)"
+            )
+    quote_age = checked_at - evidence.quote.timestamp
+    if quote_age > _MAX_QUOTE_AGE:
+        reasons.append(
+            f"BLOCKED: stale quote ({int(quote_age.total_seconds() // 60)}m old)"
+        )
+    return tuple(reasons)
 
 
 _CURRENCY_COUNTRIES = {
