@@ -43,14 +43,20 @@ class MarketRunner:
                 news=self.oracle.news,
             ).build(instruments, checked_at=now)
 
-        analyses = tuple(
-            self.oracle.analyze_pair(
-                instrument,
-                checked_at=now,
-                snapshot=snapshot,
+        if snapshot is None:
+            analyses = tuple(
+                self.oracle.analyze_pair(instrument, checked_at=now)
+                for instrument in instruments
             )
-            for instrument in instruments
-        )
+        else:
+            analyses = tuple(
+                self.oracle.analyze_pair(
+                    instrument,
+                    checked_at=now,
+                    snapshot=snapshot,
+                )
+                for instrument in instruments
+            )
         return _build_scan(analyses, instruments), analyses
 
     def run_report(
