@@ -35,11 +35,13 @@ class MarketRunner:
             if rotation is not None
             else DEFAULT_ACTIVE_INSTRUMENTS
         )
-        snapshot = LiveMarketSnapshotBuilder(
-            market=self.oracle.market,
-            calendar=self.oracle.calendar,
-            news=self.oracle.news,
-        ).build(instruments, checked_at=now)
+        snapshot = None
+        if all(hasattr(self.oracle, name) for name in ("market", "calendar", "news")):
+            snapshot = LiveMarketSnapshotBuilder(
+                market=self.oracle.market,
+                calendar=self.oracle.calendar,
+                news=self.oracle.news,
+            ).build(instruments, checked_at=now)
 
         analyses = tuple(
             self.oracle.analyze_pair(
