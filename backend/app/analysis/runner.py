@@ -9,6 +9,7 @@ from app.analysis.fundamentals import build_pair_bias
 from app.analysis.oracle import analyze_pair
 from app.core.constants import TIMEFRAMES
 from app.data.base import EconomicCalendarProvider, MarketDataProvider, NewsProvider
+from app.data.live_snapshot import InstrumentSnapshot, LiveMarketSnapshot
 from app.models.fundamental import EconomicEvent
 from app.models.oracle import OracleAnalysis
 
@@ -27,23 +28,40 @@ class OracleRunner:
         *,
         checked_at: datetime | None = None,
         duplicate_active: bool = False,
+        snapshot: LiveMarketSnapshot | None = None,
     ) -> OracleAnalysis:
         now = checked_at or datetime.now(UTC)
         if now.tzinfo is None:
             raise ValueError("checked_at must be timezone-aware")
 
-        candles = {
-            timeframe: self.market.get_candles(instrument, timeframe, limit=500)
-            for timeframe in TIMEFRAMES
-        }
-        quote = self.market.get_quote(instrument)
-        pair_bias = build_pair_bias(
-            instrument,
-            calendar=self.calendar,
-            news=self.news,
-            as_of=now,
-        )
-        events = self._economic_events(instrument, now)
+        if snapshot is not None:
+            if snapshot.checked_at != now:
+                raise ValueError("snapshot checked_at must match analysis checked_at")
+            try:
+                evidence = snapshot.markets[instrument]
+            except KeyError as exc:
+                raise ValueError(f"snapshot missing instrument: {instrument}") from exc
+            candles = evidence.candles
+            quote = evidence.quote
+            pair_bias = self._pair_bias_from_snapshot(
+                instrument, evidence, now
+            )
+            events = tuple(
+                event for event in evidence.events if event.timestamp <= now
+            )
+        else:
+            candles = {
+                timeframe: self.market.get_candles(instrument, timeframe, limit=500)
+                for timeframe in TIMEFRAMES
+            }
+            quote = self.market.get_quote(instrument)
+            pair_bias = build_pair_bias(
+                instrument,
+                calendar=self.calendar,
+                news=self.news,
+                as_of=now,
+            )
+            events = self._economic_events(instrument, now)
 
         return analyze_pair(
             candles_4h=candles["4H"],
@@ -55,6 +73,21 @@ class OracleRunner:
             economic_events=events,
             checked_at=now,
             duplicate_active=duplicate_active,
+        )
+
+    def _pair_bias_from_snapshot(
+        self,
+        instrument: str,
+        evidence: InstrumentSnapshot,
+        checked_at: datetime,
+    ):
+        from app.analysis.fundamentals import score_pair
+
+        return score_pair(
+            instrument,
+            events=list(evidence.events),
+            news=list(evidence.news),
+            as_of=checked_at,
         )
 
     def _economic_events(
