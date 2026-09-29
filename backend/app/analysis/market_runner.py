@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from app.analysis.report import render_market_report
 from app.analysis.rotation import RotationDecision
+from app.data.live_snapshot import LiveMarketSnapshotBuilder
 from app.analysis.runner import OracleRunner
 from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS, active_universe
 from app.models.market_scan import MarketScan, PairAssessment
@@ -34,8 +35,18 @@ class MarketRunner:
             if rotation is not None
             else DEFAULT_ACTIVE_INSTRUMENTS
         )
+        snapshot = LiveMarketSnapshotBuilder(
+            market=self.oracle.market,
+            calendar=self.oracle.calendar,
+            news=self.oracle.news,
+        ).build(instruments, checked_at=now)
+
         analyses = tuple(
-            self.oracle.analyze_pair(instrument, checked_at=now)
+            self.oracle.analyze_pair(
+                instrument,
+                checked_at=now,
+                snapshot=snapshot,
+            )
             for instrument in instruments
         )
         return _build_scan(analyses, instruments), analyses
