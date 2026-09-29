@@ -9,6 +9,7 @@ from app.analysis.report import render_market_report
 from app.analysis.rotation import RotationDecision
 from app.analysis.runner import OracleRunner
 from app.analysis.scanner import DEFAULT_ACTIVE_INSTRUMENTS, active_universe
+from app.data.http import ProviderError
 from app.data.live_snapshot import LiveMarketSnapshotBuilder
 from app.models.market_scan import MarketScan, PairAssessment
 from app.models.oracle import OracleAnalysis
@@ -37,11 +38,21 @@ class MarketRunner:
         )
         snapshot = None
         if all(hasattr(self.oracle, name) for name in ("market", "calendar", "news")):
-            snapshot = LiveMarketSnapshotBuilder(
-                market=self.oracle.market,
-                calendar=self.oracle.calendar,
-                news=self.oracle.news,
-            ).build(instruments, checked_at=now)
+            try:
+                snapshot = LiveMarketSnapshotBuilder(
+                    market=self.oracle.market,
+                    calendar=self.oracle.calendar,
+                    news=self.oracle.news,
+                ).build(instruments, checked_at=now)
+            except ProviderError as exc:
+                analyses = tuple(
+                    _blocked_analysis(
+                        instrument,
+                        f"DATA_ERROR: live provider unavailable ({exc})",
+                    )
+                    for instrument in instruments
+                )
+                return _build_scan(analyses, instruments), analyses
 
         if snapshot is None:
             analyses = tuple(
@@ -82,6 +93,20 @@ def _build_scan(
         active_instruments=instruments,
     )
 
+
+
+def _blocked_analysis(instrument: str, reason: str) -> OracleAnalysis:
+    return OracleAnalysis(
+        instrument=instrument,
+        decision="BLOCKED",
+        technical_score=0.0,
+        weighted_score=0.0,
+        setup=None,
+        confirmation=None,
+        trade=None,
+        risk=None,
+        reasons=(reason,),
+    )
 
 def _assessment(analysis: OracleAnalysis) -> PairAssessment:
     trade = analysis.trade
