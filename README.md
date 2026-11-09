@@ -6,7 +6,7 @@ Trade Oracle is designed to evaluate market conditions and produce clearly defin
 
 ## Project status
 
-<badge>Foundation phase</badge>
+**Status: Foundation phase**
 
 The analytical foundation is being developed. Production market-data providers and broker integrations are not connected, and the project should not be treated as a live signal service.
 
