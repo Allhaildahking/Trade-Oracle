@@ -8,6 +8,8 @@ from decimal import ROUND_DOWN, Decimal
 from app.models.symbol import SymbolSpec
 from app.models.trade import TradeDirection
 
+MAX_RISK_PERCENT = Decimal("2")
+
 
 @dataclass(frozen=True, slots=True)
 class PositionSize:
@@ -35,8 +37,10 @@ def calculate_position_size(
     """
     if equity <= 0:
         raise ValueError("equity must be positive")
-    if not Decimal("0") < risk_percent <= Decimal("100"):
-        raise ValueError("risk_percent must be greater than 0 and at most 100")
+    if direction not in ("BUY", "SELL"):
+        raise ValueError("direction must be BUY or SELL")
+    if not Decimal("0") < risk_percent <= MAX_RISK_PERCENT:
+        raise ValueError("risk_percent must be greater than 0 and at most 2")
     if entry <= 0 or stop_loss <= 0:
         raise ValueError("entry and stop_loss must be positive")
     if direction == "BUY" and stop_loss >= entry:
