@@ -38,6 +38,9 @@ class FakeMT5:
         self.visible = enabled
         return True
 
+    def account_info(self):
+        return SimpleNamespace(equity=30.0)
+
     def symbol_info_tick(self, symbol):
         return SimpleNamespace(
             bid=2350.10,
@@ -67,6 +70,13 @@ def test_provider_requires_connection():
     provider = MetaTrader5MarketDataProvider(FakeMT5())
     with pytest.raises(RuntimeError, match="not connected"):
         provider.get_quote("XAUUSDmicro")
+
+
+def test_reads_account_equity_from_terminal():
+    provider = MetaTrader5MarketDataProvider(FakeMT5())
+    provider.connect()
+
+    assert provider.get_account_equity() == Decimal("30.0")
 
 
 def test_symbol_spec_reads_live_broker_constraints():
