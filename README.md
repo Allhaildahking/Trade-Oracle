@@ -58,7 +58,7 @@ The MT5 Python package is an optional Windows-only dependency. On the Windows te
 
 ```powershell
 py -3.13 -m venv .venv
-.venv\\Scripts\\Activate.ps1
+.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,mt5]"
 ```
 
