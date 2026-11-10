@@ -9,6 +9,7 @@ from app.execution.mt5_market_data import MetaTrader5MarketDataProvider
 
 class FakeMT5:
     TIMEFRAME_5M = 5
+    ACCOUNT_TRADE_MODE_DEMO = 0
 
     def __init__(self):
         self.visible = False
@@ -39,7 +40,9 @@ class FakeMT5:
         return True
 
     def account_info(self):
-        return SimpleNamespace(equity=30.0)
+        return SimpleNamespace(
+            equity=30.0, currency="USD", trade_mode=0, leverage=100
+        )
 
     def symbol_info_tick(self, symbol):
         return SimpleNamespace(
@@ -70,6 +73,18 @@ def test_provider_requires_connection():
     provider = MetaTrader5MarketDataProvider(FakeMT5())
     with pytest.raises(RuntimeError, match="not connected"):
         provider.get_quote("XAUUSDmicro")
+
+
+def test_reads_demo_account_snapshot():
+    provider = MetaTrader5MarketDataProvider(FakeMT5())
+    provider.connect()
+
+    account = provider.get_account_snapshot()
+
+    assert account.equity == Decimal("30.0")
+    assert account.currency == "USD"
+    assert account.is_demo
+    assert account.leverage == 100
 
 
 def test_reads_account_equity_from_terminal():
