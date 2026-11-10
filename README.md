@@ -60,7 +60,10 @@ The MT5 Python package is an optional Windows-only dependency. On the Windows te
 py -3.13 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,mt5]"
+python scripts/check_mt5_demo.py
 ```
+
+The diagnostic script refuses to continue if the connected account is not a demo account. It prints account equity/currency and broker-reported symbol values without placing orders.
 
 Set `MT5_DEFAULT_SYMBOL=XAUUSDmicro` and `MT5_DEFAULT_RISK_PERCENT=1.0` in the local environment. The sizing module enforces a hard 2% risk ceiling and rejects positions when the broker minimum volume exceeds the risk budget. Confirm the actual symbol tick value, tick size, contract size, and volume limits from the connected Deriv demo terminal; test fixtures are not broker specifications.
 
