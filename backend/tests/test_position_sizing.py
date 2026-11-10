@@ -75,3 +75,27 @@ def test_rounds_down_instead_of_nearest(micro_spec):
     assert result.accepted
     assert result.volume == Decimal("0.5")
     assert result.estimated_loss <= result.risk_budget
+
+
+def test_rejects_risk_above_two_percent(micro_spec):
+    with pytest.raises(ValueError, match="at most 2"):
+        calculate_position_size(
+            equity=Decimal("30"),
+            risk_percent=Decimal("2.1"),
+            direction="BUY",
+            entry=Decimal("2350"),
+            stop_loss=Decimal("2349"),
+            spec=micro_spec,
+        )
+
+
+def test_rejects_unknown_direction(micro_spec):
+    with pytest.raises(ValueError, match="direction must be BUY or SELL"):
+        calculate_position_size(
+            equity=Decimal("30"),
+            risk_percent=Decimal("1"),
+            direction="HOLD",
+            entry=Decimal("2350"),
+            stop_loss=Decimal("2349"),
+            spec=micro_spec,
+        )
