@@ -12,6 +12,7 @@ from importlib import import_module
 from typing import Any
 
 from app.data.base import MarketDataProvider
+from app.models.account import AccountSnapshot
 from app.models.market import Candle, Quote, Timeframe
 from app.models.symbol import SymbolSpec
 
@@ -59,16 +60,28 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             self._mt5.shutdown()
         self._connected = False
 
-    def get_account_equity(self) -> Decimal:
-        """Read account equity from the connected terminal; never expose credentials."""
+    def get_account_snapshot(self) -> AccountSnapshot:
+        """Read non-sensitive account details from the connected terminal."""
         self._require_connection()
         account = self._mt5.account_info()
         if account is None:
-            raise RuntimeError(f"MT5 account information unavailable: {self._mt5.last_error()}")
+            raise RuntimeError(
+                f"MT5 account information unavailable: {self._mt5.last_error()}"
+            )
         equity = _decimal(account.equity)
         if equity <= 0:
             raise RuntimeError("MT5 account equity must be positive")
-        return equity
+        demo_mode = getattr(self._mt5, "ACCOUNT_TRADE_MODE_DEMO", 0)
+        return AccountSnapshot(
+            equity=equity,
+            currency=str(account.currency),
+            is_demo=account.trade_mode == demo_mode,
+            leverage=int(account.leverage),
+        )
+
+    def get_account_equity(self) -> Decimal:
+        """Read account equity from the connected terminal."""
+        return self.get_account_snapshot().equity
 
     def get_symbol_spec(self, instrument: str) -> SymbolSpec:
         """Return broker-reported contract, tick economics, and volume limits."""
