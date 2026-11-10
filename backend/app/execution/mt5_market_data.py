@@ -59,6 +59,17 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             self._mt5.shutdown()
         self._connected = False
 
+    def get_account_equity(self) -> Decimal:
+        """Read account equity from the connected terminal; never expose credentials."""
+        self._require_connection()
+        account = self._mt5.account_info()
+        if account is None:
+            raise RuntimeError(f"MT5 account information unavailable: {self._mt5.last_error()}")
+        equity = _decimal(account.equity)
+        if equity <= 0:
+            raise RuntimeError("MT5 account equity must be positive")
+        return equity
+
     def get_symbol_spec(self, instrument: str) -> SymbolSpec:
         """Return broker-reported contract, tick economics, and volume limits."""
         self._require_connection()
