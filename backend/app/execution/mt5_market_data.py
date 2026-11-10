@@ -13,6 +13,7 @@ from typing import Any
 
 from app.data.base import MarketDataProvider
 from app.models.market import Candle, Quote, Timeframe
+from app.models.symbol import SymbolSpec
 
 _TIMEFRAME_MINUTES: dict[Timeframe, int] = {
     "4H": 240,
@@ -58,12 +59,10 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             self._mt5.shutdown()
         self._connected = False
 
-    def get_symbol_spec(self, instrument: str):
+    def get_symbol_spec(self, instrument: str) -> SymbolSpec:
         """Return broker-reported contract, tick economics, and volume limits."""
         self._require_connection()
         self._ensure_symbol(instrument)
-        from app.models.symbol import SymbolSpec
-
         info = self._mt5.symbol_info(instrument)
         if info is None:
             raise RuntimeError(f"MT5 symbol metadata unavailable for {instrument}")
@@ -80,7 +79,7 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             contract_size=_decimal(info.trade_contract_size),
         )
 
-    def get_quote(self, instrument: str):
+    def get_quote(self, instrument: str) -> Quote:
         self._require_connection()
         self._ensure_symbol(instrument)
         tick = self._mt5.symbol_info_tick(instrument)
