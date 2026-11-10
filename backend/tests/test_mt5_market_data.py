@@ -21,7 +21,16 @@ class FakeMT5:
         self.shutdown_called = True
 
     def symbol_info(self, symbol):
-        return SimpleNamespace(visible=self.visible)
+        return SimpleNamespace(
+            visible=self.visible,
+            trade_tick_size=0.01,
+            trade_tick_value_loss=0.01,
+            trade_tick_value=0.01,
+            volume_min=0.1,
+            volume_max=100.0,
+            volume_step=0.1,
+            trade_contract_size=1.0,
+        )
 
     def symbol_select(self, symbol, enabled):
         self.selected.append((symbol, enabled))
@@ -57,6 +66,21 @@ def test_provider_requires_connection():
     provider = MetaTrader5MarketDataProvider(FakeMT5())
     with pytest.raises(RuntimeError, match="not connected"):
         provider.get_quote("XAUUSDmicro")
+
+
+def test_symbol_spec_reads_live_broker_constraints():
+    mt5 = FakeMT5()
+    provider = MetaTrader5MarketDataProvider(mt5)
+    provider.connect()
+
+    spec = provider.get_symbol_spec("XAUUSDmicro")
+
+    assert spec.instrument == "XAUUSDmicro"
+    assert spec.trade_tick_size == Decimal("0.01")
+    assert spec.trade_tick_value_loss == Decimal("0.01")
+    assert spec.volume_min == Decimal("0.1")
+    assert spec.volume_step == Decimal("0.1")
+    assert spec.contract_size == Decimal("1.0")
 
 
 def test_quote_selects_symbol_and_returns_decimal_prices():
