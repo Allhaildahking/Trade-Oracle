@@ -17,6 +17,7 @@ class Settings:
     trading_economics_api_key: str = ""
     telegram_bot_token: str = ""
     mt5_default_symbol: str = "XAUUSDmicro"
+    mt5_default_risk_percent: str = "1.0"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -30,6 +31,7 @@ class Settings:
             trading_economics_api_key=os.getenv("TRADING_ECONOMICS_API_KEY", ""),
             telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
             mt5_default_symbol=os.getenv("MT5_DEFAULT_SYMBOL", "XAUUSDmicro"),
+            mt5_default_risk_percent=os.getenv("MT5_DEFAULT_RISK_PERCENT", "1.0"),
         )
 
 
