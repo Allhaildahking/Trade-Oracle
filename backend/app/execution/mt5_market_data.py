@@ -58,7 +58,29 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             self._mt5.shutdown()
         self._connected = False
 
-    def get_quote(self, instrument: str) -> Quote:
+    def get_symbol_spec(self, instrument: str):
+        """Return broker-reported contract, tick economics, and volume limits."""
+        self._require_connection()
+        self._ensure_symbol(instrument)
+        from app.models.symbol import SymbolSpec
+
+        info = self._mt5.symbol_info(instrument)
+        if info is None:
+            raise RuntimeError(f"MT5 symbol metadata unavailable for {instrument}")
+        tick_value_loss = getattr(info, "trade_tick_value_loss", 0) or getattr(
+            info, "trade_tick_value", 0
+        )
+        return SymbolSpec(
+            instrument=instrument,
+            trade_tick_size=_decimal(info.trade_tick_size),
+            trade_tick_value_loss=_decimal(tick_value_loss),
+            volume_min=_decimal(info.volume_min),
+            volume_max=_decimal(info.volume_max),
+            volume_step=_decimal(info.volume_step),
+            contract_size=_decimal(info.trade_contract_size),
+        )
+
+    def get_quote(self, instrument: str):
         self._require_connection()
         self._ensure_symbol(instrument)
         tick = self._mt5.symbol_info_tick(instrument)
