@@ -10,6 +10,7 @@ from app.execution.mt5_market_data import MetaTrader5MarketDataProvider
 class FakeMT5:
     TIMEFRAME_5M = 5
     ACCOUNT_TRADE_MODE_DEMO = 0
+    COPY_TICKS_INFO = 1
 
     def __init__(self):
         self.visible = False
@@ -62,6 +63,17 @@ class FakeMT5:
                 "low": 2349.0,
                 "close": 2350.5,
                 "tick_volume": 42,
+            }
+        ]
+
+    def copy_ticks_range(self, symbol, start, end, flags):
+        assert flags == self.COPY_TICKS_INFO
+        return [
+            {
+                "time": 1_800_000_001,
+                "time_msc": 1_800_000_001_000,
+                "bid": 2349.90,
+                "ask": 2350.10,
             }
         ]
 
@@ -158,3 +170,16 @@ def test_rejects_naive_datetime():
             "5M",
             start=datetime(2026, 1, 1),
         )
+
+
+
+def test_historical_candles_can_be_enriched_from_first_quote_tick():
+    provider = MetaTrader5MarketDataProvider(FakeMT5())
+    provider.connect()
+
+    candles = provider.get_candles_with_spread("XAUUSDmicro", "5M", limit=10)
+
+    assert len(candles) == 1
+    assert candles[0].bid == Decimal("2349.9")
+    assert candles[0].ask == Decimal("2350.1")
+    assert candles[0].source == "metatrader5"
