@@ -166,6 +166,22 @@ _CURRENCY_COUNTRIES = {
     "CAD": "canada",
     "AUD": "australia",
     "NZD": "new zealand",
+    "CNY": "china",
+    "CNH": "china",
+    "SEK": "sweden",
+    "NOK": "norway",
+    "SGD": "singapore",
+    "HKD": "hong kong",
+    "MXN": "mexico",
+    "ZAR": "south africa",
+    "TRY": "turkey",
+    "PLN": "poland",
+    "HUF": "hungary",
+    "CZK": "czech republic",
+    "ILS": "israel",
+    "KRW": "south korea",
+    "INR": "india",
+    "BRL": "brazil",
 }
 
 
