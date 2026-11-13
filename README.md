@@ -6,9 +6,9 @@ Trade Oracle is designed to evaluate market conditions and produce clearly defin
 
 ## Project status
 
-**Status: Foundation phase**
+**Status: Foundation + experimental Deriv MT5 integration**
 
-The analytical foundation is being developed. Production market-data providers and broker integrations are not connected, and the project should not be treated as a live signal service.
+The `feat/deriv-mt5-market-data` branch adds a read-only MT5 adapter, broker symbol specifications, account-equity access, and deterministic risk-based position sizing. This work is not yet merged or validated against a live Deriv terminal. No order placement or position management is implemented. Do not treat this branch as a live trading system.
 
 ## V1 scope
 
@@ -51,6 +51,21 @@ A no-trade result is valid. The system should not force a setup when market cond
 5. Build reporting and notification layers after the analytical foundation is stable.
 
 These are development priorities, not claims that the features are already complete.
+
+## Deriv MT5 development setup
+
+The MT5 Python package is an optional Windows-only dependency. On the Windows terminal machine, install the project and development tools with:
+
+```powershell
+py -3.13 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev,mt5]"
+python scripts/check_mt5_demo.py
+```
+
+The diagnostic script refuses to continue if the connected account is not a demo account. It prints account equity/currency and broker-reported symbol values without placing orders.
+
+Set `MT5_DEFAULT_SYMBOL=XAUUSDmicro` and `MT5_DEFAULT_RISK_PERCENT=1.0` in the local environment. The sizing module enforces a hard 2% risk ceiling and rejects positions when the broker minimum volume exceeds the risk budget. Confirm the actual symbol tick value, tick size, contract size, and volume limits from the connected Deriv demo terminal; test fixtures are not broker specifications.
 
 ## Boundaries
 
