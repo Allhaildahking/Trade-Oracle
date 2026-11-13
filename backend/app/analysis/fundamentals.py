@@ -101,8 +101,7 @@ def score_pair(
     live_intelligence: tuple[LiveIntelligence, ...] = (),
     as_of: datetime | None = None,
 ) -> PairBias:
-    if len(instrument) != 6 or not instrument.isalpha():
-        raise ValueError("Pair must be a six-letter currency symbol.")
+    currencies = _instrument_currencies(instrument)
     if as_of is not None and as_of.tzinfo is None:
         raise ValueError("as_of must be timezone-aware")
     if as_of is not None:
@@ -111,8 +110,8 @@ def score_pair(
         live_intelligence = tuple(
             item for item in live_intelligence if item.timestamp <= as_of
         )
-    base = score_currency(instrument[:3], events, news, live_intelligence)
-    quote = score_currency(instrument[3:], events, news, live_intelligence)
+    base = score_currency(currencies[0], events, news, live_intelligence)
+    quote = score_currency(currencies[1], events, news, live_intelligence)
     score = base.score - quote.score
     direction = "BUY" if score > 0 else "SELL" if score < 0 else "NEUTRAL"
     return PairBias(
@@ -156,11 +155,8 @@ def build_pair_bias(
         raise ValueError("as_of must be timezone-aware")
     if lookback < timedelta(0) or lookahead < timedelta(0):
         raise ValueError("lookback and lookahead must not be negative")
-    if len(instrument) != 6 or not instrument.isalpha():
-        raise ValueError("instrument must be a six-letter currency pair")
-
+    currencies = _instrument_currencies(instrument)
     pair = instrument.upper()
-    currencies = (pair[:3], pair[3:])
     countries = tuple(
         _CURRENCY_COUNTRIES[currency]
         for currency in currencies
@@ -184,3 +180,14 @@ def build_pair_bias(
         live_intelligence=live_intelligence,
         as_of=as_of,
     )
+
+
+
+def _instrument_currencies(instrument: str) -> tuple[str, str]:
+    """Resolve broker symbols to their underlying fundamental currencies."""
+    symbol = instrument.upper()
+    if symbol.startswith("XAUUSD"):
+        return "XAU", "USD"
+    if len(symbol) == 6 and symbol.isalpha():
+        return symbol[:3], symbol[3:]
+    raise ValueError("instrument must be a supported six-letter pair or XAUUSD broker symbol")
