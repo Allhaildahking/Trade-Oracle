@@ -15,7 +15,10 @@ def main() -> int:
         provider.connect(os.getenv("MT5_TERMINAL_PATH") or None)
         account = provider.get_account_snapshot()
         if not account.is_demo:
-            print("STOP: connected account is not a demo account. No checks beyond account info.")
+            print(
+                "STOP: connected account is not a demo account. "
+                "No checks beyond account info."
+            )
             return 2
 
         symbol = settings.mt5_default_symbol
@@ -31,7 +34,10 @@ def main() -> int:
         print(f"Tick size: {spec.trade_tick_size}")
         print(f"Tick value (loss): {spec.trade_tick_value_loss} {account.currency}")
         print(f"Contract size: {spec.contract_size}")
-        print(f"Volume min / step / max: {spec.volume_min} / {spec.volume_step} / {spec.volume_max}")
+        print(
+            "Volume min / step / max: "
+            f"{spec.volume_min} / {spec.volume_step} / {spec.volume_max}"
+        )
         print("READ-ONLY CHECK COMPLETE. No orders were submitted.")
         return 0
     except Exception as exc:
