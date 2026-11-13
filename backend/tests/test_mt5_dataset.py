@@ -36,7 +36,6 @@ class FakeHistoricalProvider:
         self, instrument, timeframe, *, start=None, end=None, limit=500
     ):
         self.calls.append((timeframe, start, end, limit))
-        minutes = {"4H": 240, "1H": 60, "15M": 15, "5M": 5}[timeframe]
         timestamp = start
         return [
             Candle(
