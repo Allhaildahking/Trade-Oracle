@@ -255,38 +255,38 @@ def run_backtest(
                     actual_reward = abs(trade.take_profit - fill)
                     if actual_risk <= 0 or actual_reward / actual_risk < Decimal("2.5"):
                         skipped += 1
-                        continue
-                    # Size against the actual spread/slippage-adjusted fill, not
-                    # the ideal signal price, so the risk cap remains real.
-                    size = calculate_position_size(
-                        equity=equity,
-                        risk_percent=risk_pct,
-                        direction=trade.direction,
-                        entry=fill,
-                        stop_loss=trade.stop_loss,
-                        spec=symbol_spec,
-                    )
-                    if not size.accepted or size.volume is None:
-                        skipped += 1
                     else:
-                        risk_cash = (
-                            abs(fill - trade.stop_loss)
-                            / symbol_spec.trade_tick_size
-                            * symbol_spec.trade_tick_value_loss
-                            * size.volume
-                        )
-                        open_trade = _OpenTrade(
-                            instrument=instrument,
+                        # Size against the actual spread/slippage-adjusted fill,
+                        # not the ideal signal price, so the risk cap remains real.
+                        size = calculate_position_size(
+                            equity=equity,
+                            risk_percent=risk_pct,
                             direction=trade.direction,
-                            signal_time=signal_time,
-                            entry_time=bar_open,
                             entry=fill,
                             stop_loss=trade.stop_loss,
-                            take_profit=trade.take_profit,
-                            volume=size.volume,
-                            risk_cash=risk_cash,
-                            commission=config.commission_per_lot_round_turn * size.volume,
+                            spec=symbol_spec,
                         )
+                        if not size.accepted or size.volume is None:
+                            skipped += 1
+                        else:
+                            risk_cash = (
+                                actual_risk
+                                / symbol_spec.trade_tick_size
+                                * symbol_spec.trade_tick_value_loss
+                                * size.volume
+                            )
+                            open_trade = _OpenTrade(
+                                instrument=instrument,
+                                direction=trade.direction,
+                                signal_time=signal_time,
+                                entry_time=bar_open,
+                                entry=fill,
+                                stop_loss=trade.stop_loss,
+                                take_profit=trade.take_profit,
+                                volume=size.volume,
+                                risk_cash=risk_cash,
+                                commission=config.commission_per_lot_round_turn * size.volume,
+                            )
 
         # Resolve exits conservatively. Both touched means stop loss first.
         if open_trade is not None:
