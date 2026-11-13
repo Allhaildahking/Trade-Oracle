@@ -156,6 +156,7 @@ def test_rejects_stale_quote(analysis, account, quote, spec, policy):
         bid=quote.bid,
         ask=quote.ask,
         mid=quote.mid,
+        source="test",
     )
     result = run_gate(analysis, account, stale, spec, policy)
     assert not result.approved
