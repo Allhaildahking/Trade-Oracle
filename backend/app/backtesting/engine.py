@@ -302,11 +302,10 @@ def run_backtest(
                 else bar.low <= position.take_profit
             )
             exit_price: Decimal | None = None
-            result = ""
             if hit_sl:
-                exit_price, result = position.stop_loss, "LOSS"
+                exit_price = position.stop_loss
             elif hit_tp:
-                exit_price, result = position.take_profit, "WIN"
+                exit_price = position.take_profit
 
             if exit_price is not None:
                 if bar.bid is None or bar.ask is None or bar.ask < bar.bid:
