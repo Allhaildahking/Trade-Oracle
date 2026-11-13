@@ -48,8 +48,6 @@ class ExecutionPolicy:
             raise ValueError("max_spread_to_risk must not be negative")
         if self.max_quote_age <= timedelta(0):
             raise ValueError("max_quote_age must be positive")
-        if not self.allowed_instruments:
-            raise ValueError("allowed_instruments must not be empty")
 
 
 @dataclass(frozen=True, slots=True)
