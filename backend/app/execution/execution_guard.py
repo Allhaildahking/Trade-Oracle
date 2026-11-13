@@ -111,6 +111,8 @@ def approve_execution(
         return reject("live account rejected: demo account required")
     if account.equity <= 0:
         return reject("account equity is unavailable or invalid")
+    if account.currency.upper() != "USD":
+        return reject("balance-based risk tiers require a USD-denominated account")
     if open_positions >= policy.max_open_positions:
         return reject("maximum open-position limit reached")
     risk_multiplier = (
