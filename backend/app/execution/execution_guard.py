@@ -103,7 +103,7 @@ def approve_execution(
 
     if not policy.enabled:
         return reject("execution is disabled by policy")
-    if instrument not in policy.allowed_instruments:
+    if policy.allowed_instruments and instrument not in policy.allowed_instruments:
         return reject("instrument is not allowlisted")
     if not account.is_demo and policy.require_demo_account:
         return reject("live account rejected: demo account required")
