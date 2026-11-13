@@ -94,18 +94,109 @@ def score_currency(
 
 
 _GOLD_DRIVER_RULES: tuple[tuple[str, int, tuple[str, ...]], ...] = (
-    ("real_yields_falling", 1, ("real yields fall", "real yields decline", "real yields drop", "real rates fall", "real rates decline")),
-    ("real_yields_rising", -1, ("real yields rise", "real yields climb", "real yields jump", "real rates rise", "real rates climb")),
-    ("fed_dovish", 1, ("fed signals rate cuts", "fed rate cut", "fed turns dovish", "dovish fed", "monetary easing")),
-    ("fed_hawkish", -1, ("fed signals rate hikes", "fed rate hike", "fed turns hawkish", "hawkish fed", "monetary tightening")),
-    ("usd_weakness", 1, ("dollar weakens", "dollar falls", "usd weakens", "dollar slides")),
-    ("usd_strength", -1, ("dollar strengthens", "dollar rises", "usd strengthens", "dollar rallies")),
-    ("central_bank_buying", 1, ("central bank gold buying", "central banks buy gold", "central bank purchases gold", "gold reserves increase")),
-    ("central_bank_selling", -1, ("central bank gold selling", "central banks sell gold", "central bank sells gold")),
-    ("gold_etf_inflows", 1, ("gold etf inflows", "gold etf sees inflows", "gold etf holdings rise")),
-    ("gold_etf_outflows", -1, ("gold etf outflows", "gold etf sees outflows", "gold etf holdings fall")),
-    ("geopolitical_escalation", 1, ("geopolitical tensions escalate", "war escalates", "military escalation", "safe haven demand rises")),
-    ("geopolitical_relief", -1, ("geopolitical tensions ease", "ceasefire agreed", "peace deal reached", "safe haven demand fades")),
+    (
+        "real_yields_falling",
+        1,
+        (
+            "real yields fall",
+            "real yields decline",
+            "real yields drop",
+            "real rates fall",
+            "real rates decline",
+        ),
+    ),
+    (
+        "real_yields_rising",
+        -1,
+        (
+            "real yields rise",
+            "real yields climb",
+            "real yields jump",
+            "real rates rise",
+            "real rates climb",
+        ),
+    ),
+    (
+        "fed_dovish",
+        1,
+        (
+            "fed signals rate cuts",
+            "fed rate cut",
+            "fed turns dovish",
+            "dovish fed",
+            "monetary easing",
+        ),
+    ),
+    (
+        "fed_hawkish",
+        -1,
+        (
+            "fed signals rate hikes",
+            "fed rate hike",
+            "fed turns hawkish",
+            "hawkish fed",
+            "monetary tightening",
+        ),
+    ),
+    (
+        "usd_weakness",
+        1,
+        ("dollar weakens", "dollar falls", "usd weakens", "dollar slides"),
+    ),
+    (
+        "usd_strength",
+        -1,
+        ("dollar strengthens", "dollar rises", "usd strengthens", "dollar rallies"),
+    ),
+    (
+        "central_bank_buying",
+        1,
+        (
+            "central bank gold buying",
+            "central banks buy gold",
+            "central bank purchases gold",
+            "gold reserves increase",
+        ),
+    ),
+    (
+        "central_bank_selling",
+        -1,
+        (
+            "central bank gold selling",
+            "central banks sell gold",
+            "central bank sells gold",
+        ),
+    ),
+    (
+        "gold_etf_inflows",
+        1,
+        ("gold etf inflows", "gold etf sees inflows", "gold etf holdings rise"),
+    ),
+    (
+        "gold_etf_outflows",
+        -1,
+        ("gold etf outflows", "gold etf sees outflows", "gold etf holdings fall"),
+    ),
+    (
+        "geopolitical_escalation",
+        1,
+        (
+            "geopolitical tensions escalate",
+            "war escalates",
+            "military escalation",
+            "safe haven demand rises",
+        ),
+    ),
+    (
+        "geopolitical_relief",
+        -1,
+        (
+            "geopolitical tensions ease",
+            "ceasefire agreed",
+            "peace deal reached",
+            "safe haven demand fades",
+        ),
+    ),
 )
 
 
