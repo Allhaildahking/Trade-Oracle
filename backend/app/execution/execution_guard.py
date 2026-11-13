@@ -31,7 +31,7 @@ class ExecutionPolicy:
     max_open_positions: int = 1
     max_spread_to_risk: Decimal = Decimal("0.10")
     max_quote_age: timedelta = timedelta(seconds=10)
-    allowed_instruments: tuple[str, ...] = ("XAUUSDmicro",)
+    allowed_instruments: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not Decimal("0") < self.risk_percent <= self.max_risk_percent <= Decimal("10"):
