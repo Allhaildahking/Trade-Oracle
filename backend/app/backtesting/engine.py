@@ -218,29 +218,31 @@ def run_backtest(
                     if equity >= config.reduced_risk_balance_threshold
                     else config.risk_below_threshold_percent
                 )
-                size = calculate_position_size(
-                    equity=equity,
-                    risk_percent=risk_pct,
-                    direction=trade.direction,
-                    entry=trade.entry,
-                    stop_loss=trade.stop_loss,
-                    spec=symbol_spec,
+                half_spread = (bar.ask - bar.bid) / Decimal("2")
+                slippage = config.slippage_ticks_per_side * symbol_spec.trade_tick_size
+                fill = (
+                    bar.open + half_spread + slippage
+                    if trade.direction == "BUY"
+                    else bar.open - half_spread - slippage
                 )
-                if not size.accepted or size.volume is None:
+                # Reject a gap that makes the original stop invalid.
+                if (
+                    (trade.direction == "BUY" and fill <= trade.stop_loss)
+                    or (trade.direction == "SELL" and fill >= trade.stop_loss)
+                ):
                     skipped += 1
                 else:
-                    half_spread = (bar.ask - bar.bid) / Decimal("2")
-                    slippage = config.slippage_ticks_per_side * symbol_spec.trade_tick_size
-                    fill = (
-                        bar.open + half_spread + slippage
-                        if trade.direction == "BUY"
-                        else bar.open - half_spread - slippage
+                    # Size against the actual spread/slippage-adjusted fill, not
+                    # the ideal signal price, so the risk cap remains real.
+                    size = calculate_position_size(
+                        equity=equity,
+                        risk_percent=risk_pct,
+                        direction=trade.direction,
+                        entry=fill,
+                        stop_loss=trade.stop_loss,
+                        spec=symbol_spec,
                     )
-                    # Reject a gap that makes the original stop invalid or destroys RR.
-                    if (
-                        (trade.direction == "BUY" and fill <= trade.stop_loss)
-                        or (trade.direction == "SELL" and fill >= trade.stop_loss)
-                    ):
+                    if not size.accepted or size.volume is None:
                         skipped += 1
                     else:
                         risk_cash = (
@@ -249,21 +251,18 @@ def run_backtest(
                             * symbol_spec.trade_tick_value_loss
                             * size.volume
                         )
-                        if risk_cash > equity * risk_pct / _ONE_HUNDRED:
-                            skipped += 1
-                        else:
-                            open_trade = _OpenTrade(
-                                instrument=instrument,
-                                direction=trade.direction,
-                                signal_time=signal_time,
-                                entry_time=bar_open,
-                                entry=fill,
-                                stop_loss=trade.stop_loss,
-                                take_profit=trade.take_profit,
-                                volume=size.volume,
-                                risk_cash=risk_cash,
-                                commission=config.commission_per_lot_round_turn * size.volume,
-                            )
+                        open_trade = _OpenTrade(
+                            instrument=instrument,
+                            direction=trade.direction,
+                            signal_time=signal_time,
+                            entry_time=bar_open,
+                            entry=fill,
+                            stop_loss=trade.stop_loss,
+                            take_profit=trade.take_profit,
+                            volume=size.volume,
+                            risk_cash=risk_cash,
+                            commission=config.commission_per_lot_round_turn * size.volume,
+                        )
 
         # Resolve exits conservatively. Both touched means stop loss first.
         if open_trade is not None:
