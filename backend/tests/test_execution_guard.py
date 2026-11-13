@@ -258,3 +258,22 @@ def test_policy_defaults_to_ten_percent_and_twenty_percent():
     assert policy.max_daily_loss_percent == Decimal("20.0")
     assert policy.reduced_risk_balance_threshold == Decimal("30.0")
     assert policy.reduced_risk_multiplier == Decimal("0.5")
+
+    
+@pytest.mark.parametrize(
+    ("equity", "expected_risk"),
+    [
+        (Decimal("5"), Decimal("10")),
+        (Decimal("10"), Decimal("10")),
+        (Decimal("29.99"), Decimal("10")),
+        (Decimal("30"), Decimal("5")),
+        (Decimal("100"), Decimal("5")),
+    ],
+)
+def test_balance_based_risk_tiers(
+    analysis, quote, spec, policy, equity, expected_risk
+):
+    small_account = AccountSnapshot(equity, "USD", True, 100)
+    result = run_gate(analysis, small_account, quote, spec, policy)
+    assert result.approved
+    assert result.risk_budget == equity * expected_risk / Decimal("100")
