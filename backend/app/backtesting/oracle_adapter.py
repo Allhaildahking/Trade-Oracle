@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Adapter connecting chronological replay to the production Oracle analyzer.
 
 Historical data callbacks must return point-in-time snapshots. In particular,
