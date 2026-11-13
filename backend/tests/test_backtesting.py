@@ -43,7 +43,7 @@ def _analysis() -> OracleAnalysis:
         status="VALID",
         entry=Decimal("1.1000"),
         stop_loss=Decimal("1.0980"),
-        take_profit=Decimal("1.1055"),
+        take_profit=Decimal("1.1058"),
         risk_distance=Decimal("0.0020"),
         reward_distance=Decimal("0.0050"),
         risk_reward=Decimal("2.5"),
