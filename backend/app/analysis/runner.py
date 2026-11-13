@@ -171,6 +171,8 @@ _CURRENCY_COUNTRIES = {
 
 def _instrument_currencies(instrument: str) -> tuple[str, ...]:
     pair = instrument.upper()
-    if len(pair) != 6:
-        raise ValueError("instrument must be a six-letter symbol")
-    return pair[:3], pair[3:]
+    if pair.startswith("XAUUSD"):
+        return "XAU", "USD"
+    if len(pair) == 6 and pair.isalpha():
+        return pair[:3], pair[3:]
+    raise ValueError("instrument must be a supported six-letter pair or XAUUSD broker symbol")
