@@ -8,7 +8,10 @@ from app.execution.mt5_market_data import MetaTrader5MarketDataProvider
 
 
 class FakeMT5:
-    TIMEFRAME_5M = 5
+    TIMEFRAME_H4 = 240
+    TIMEFRAME_H1 = 60
+    TIMEFRAME_M15 = 15
+    TIMEFRAME_M5 = 5
     ACCOUNT_TRADE_MODE_DEMO = 0
     COPY_TICKS_INFO = 1
 
@@ -16,6 +19,7 @@ class FakeMT5:
         self.visible = False
         self.selected = []
         self.shutdown_called = False
+        self.requested_timeframes = []
 
     def initialize(self, **kwargs):
         return True
@@ -55,6 +59,7 @@ class FakeMT5:
 
     def copy_rates_from_pos(self, symbol, timeframe, start_pos, limit):
         assert start_pos == 1
+        self.requested_timeframes.append(timeframe)
         return [
             {
                 "time": 1_800_000_000,
@@ -183,3 +188,15 @@ def test_historical_candles_can_be_enriched_from_first_quote_tick():
     assert candles[0].bid == Decimal("2349.9")
     assert candles[0].ask == Decimal("2350.1")
     assert candles[0].source == "metatrader5"
+
+
+
+def test_oracle_timeframes_map_to_actual_mt5_constant_names():
+    mt5 = FakeMT5()
+    provider = MetaTrader5MarketDataProvider(mt5)
+    provider.connect()
+
+    for timeframe in ("4H", "1H", "15M", "5M"):
+        provider.get_candles("XAUUSDmicro", timeframe, limit=10)
+
+    assert mt5.requested_timeframes == [240, 60, 15, 5]
