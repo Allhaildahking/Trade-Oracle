@@ -251,19 +251,26 @@ def run_backtest(
                 ):
                     skipped += 1
                 else:
-                    actual_risk = abs(fill - trade.stop_loss)
-                    actual_reward = abs(trade.take_profit - fill)
-                    if actual_risk <= 0 or actual_reward / actual_risk < Decimal("2.5"):
+                    exit_cost = half_spread + slippage
+                    actual_risk = abs(fill - trade.stop_loss) + exit_cost
+                    actual_reward = abs(trade.take_profit - fill) - exit_cost
+                    if actual_risk <= 0 or actual_reward <= 0:
+                        skipped += 1
+                    elif actual_reward / actual_risk < Decimal("2.5"):
                         skipped += 1
                     else:
-                        # Size against the actual spread/slippage-adjusted fill,
-                        # not the ideal signal price, so the risk cap remains real.
+                        # Reserve for estimated spread/slippage on both sides.
+                        sizing_stop = (
+                            trade.stop_loss - exit_cost
+                            if trade.direction == "BUY"
+                            else trade.stop_loss + exit_cost
+                        )
                         size = calculate_position_size(
                             equity=equity,
                             risk_percent=risk_pct,
                             direction=trade.direction,
                             entry=fill,
-                            stop_loss=trade.stop_loss,
+                            stop_loss=sizing_stop,
                             spec=symbol_spec,
                         )
                         if not size.accepted or size.volume is None:
