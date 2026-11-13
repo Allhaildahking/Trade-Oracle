@@ -245,3 +245,40 @@ def test_gold_fundamentals_respect_as_of_time() -> None:
     assert result.base.score == Decimal("0")
     assert result.direction == "NEUTRAL"
 
+
+@pytest.mark.parametrize(
+    ("instrument", "base_currency", "quote_currency"),
+    [
+        ("EURUSD", "EUR", "USD"),
+        ("GBPJPY", "GBP", "JPY"),
+        ("AUDCAD", "AUD", "CAD"),
+        ("NZDCHF", "NZD", "CHF"),
+        ("USDMXN", "USD", "MXN"),
+        ("EURZAR", "EUR", "ZAR"),
+        ("USDTRY", "USD", "TRY"),
+        ("XAUUSDmicro", "XAU", "USD"),
+    ],
+)
+def test_fundamental_scoring_supports_multiple_instrument_families(
+    instrument: str, base_currency: str, quote_currency: str
+) -> None:
+    result = score_pair(instrument, events=[], news=[])
+    assert result.base.currency == base_currency
+    assert result.quote.currency == quote_currency
+
+
+def test_gold_fundamentals_keep_usd_news_and_macro_scoring() -> None:
+    usd_news = NewsItem(
+        news_id="usd-1",
+        timestamp=datetime(2026, 9, 25, tzinfo=UTC),
+        title="US dollar outlook",
+        summary="",
+        source_name="Reuters",
+        url=None,
+        currencies=("USD",),
+        sentiment_score=Decimal("-0.6"),
+    )
+    result = score_pair("XAUUSD", events=[], news=[usd_news])
+    assert result.quote.score == Decimal("-0.6")
+    assert result.direction == "BUY"
+
