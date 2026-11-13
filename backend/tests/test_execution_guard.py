@@ -11,7 +11,6 @@ from app.models.risk import RiskValidation
 from app.models.symbol import SymbolSpec
 from app.models.trade import TradeCandidate
 
-
 NOW = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 
 
