@@ -4,6 +4,7 @@ from decimal import Decimal
 
 import pytest
 
+from app.backtesting.dataset_io import load_historical_dataset, save_historical_dataset
 from app.backtesting.mt5_dataset import collect_mt5_historical_dataset
 from app.models.market import Candle
 from app.models.symbol import SymbolSpec
@@ -103,3 +104,29 @@ def test_rejects_naive_or_reversed_date_ranges():
             start=START + timedelta(days=1),
             end=START,
         )
+
+
+
+def test_saved_dataset_round_trips_exact_decimal_values(tmp_path):
+    provider = FakeHistoricalProvider()
+    dataset = collect_mt5_historical_dataset(
+        provider,
+        instrument="EURUSD",
+        start=START,
+        end=START + timedelta(days=1),
+    )
+
+    path = save_historical_dataset(dataset, tmp_path / "history" / "eurusd.json")
+    restored = load_historical_dataset(path)
+
+    assert restored == dataset
+    assert restored.symbol_spec.trade_tick_size == Decimal("0.0001")
+    assert restored.candles["5M"][0].bid == Decimal("1.1004")
+
+
+def test_saved_dataset_rejects_unknown_schema_version(tmp_path):
+    path = tmp_path / "unknown.json"
+    path.write_text('{"schema_version": 999}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="schema version"):
+        load_historical_dataset(path)
