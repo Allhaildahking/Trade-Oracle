@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 
 from app.analysis.fundamentals import score_pair
-from app.models.fundamental import EconomicEvent
+from app.models.fundamental import EconomicEvent, NewsItem
 from app.models.live_intelligence import LiveIntelligence
 
 
@@ -192,3 +192,56 @@ def test_xauusd_broker_suffix_maps_to_underlying_currencies() -> None:
     assert result.instrument == "XAUUSDmicro"
     assert result.direction == "SELL"
     assert result.score == Decimal("-1.5")
+
+def gold_news(title: str, *, timestamp: datetime | None = None) -> NewsItem:
+    return NewsItem(
+        news_id=title,
+        timestamp=timestamp or datetime(2026, 9, 25, tzinfo=UTC),
+        title=title,
+        summary="",
+        source_name="Reuters",
+        url=None,
+        currencies=("USD",),
+    )
+
+
+def test_gold_pair_uses_explicit_gold_drivers() -> None:
+    result = score_pair(
+        "XAUUSD",
+        events=[],
+        news=[gold_news("Real yields fall as the Fed turns dovish")],
+    )
+    assert result.base.currency == "XAU"
+    assert result.base.score == Decimal("1")
+    assert result.direction == "BUY"
+    assert any("real_yields_falling" in item for item in result.base.evidence)
+
+
+def test_gold_pair_ignores_ambiguous_or_conflicting_headlines() -> None:
+    result = score_pair(
+        "XAUUSDmicro",
+        events=[],
+        news=[
+            gold_news("Real yields fall while the dollar strengthens"),
+            gold_news("Gold market outlook remains uncertain"),
+        ],
+    )
+    assert result.base.score == Decimal("0")
+    assert result.direction == "NEUTRAL"
+
+
+def test_gold_fundamentals_respect_as_of_time() -> None:
+    result = score_pair(
+        "XAUUSD",
+        events=[],
+        news=[
+            gold_news(
+                "Central banks buy gold",
+                timestamp=datetime(2026, 9, 26, tzinfo=UTC),
+            )
+        ],
+        as_of=datetime(2026, 9, 25, tzinfo=UTC),
+    )
+    assert result.base.score == Decimal("0")
+    assert result.direction == "NEUTRAL"
+
