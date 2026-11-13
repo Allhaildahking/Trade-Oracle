@@ -211,6 +211,12 @@ def test_rejects_daily_loss_limit(analysis, account, quote, spec, policy):
     assert "daily realized-loss" in result.reasons[-1]
 
 
+def test_default_policy_accepts_any_matching_broker_symbol(analysis, account, quote, spec):
+    dynamic = ExecutionPolicy(enabled=True)
+    result = run_gate(analysis, account, quote, spec, dynamic)
+    assert result.approved
+
+
 def test_rejects_symbol_not_allowlisted(analysis, account, quote, spec):
     restricted = ExecutionPolicy(
         enabled=True,
