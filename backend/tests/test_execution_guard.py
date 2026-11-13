@@ -19,8 +19,8 @@ NOW = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 def policy():
     return ExecutionPolicy(
         enabled=True,
-        risk_percent=Decimal("1"),
-        max_risk_percent=Decimal("1"),
+        risk_percent=Decimal("10"),
+        max_risk_percent=Decimal("10"),
         allowed_instruments=("XAUUSDmicro",),
     )
 
@@ -199,7 +199,7 @@ def test_rejects_when_open_position_limit_reached(analysis, account, quote, spec
 def test_rejects_daily_loss_limit(analysis, account, quote, spec, policy):
     result = run_gate(
         analysis, account, quote, spec, policy,
-        daily_realized_loss=Decimal("30"),
+        daily_realized_loss=Decimal("200"),
     )
     assert not result.approved
     assert "daily realized-loss" in result.reasons[-1]
@@ -223,3 +223,38 @@ def test_rejects_bad_clock_and_negative_loss(analysis, account, quote, spec, pol
             analysis, account, quote, spec, policy,
             daily_realized_loss=Decimal("-1"),
         )
+
+
+
+def test_risk_and_daily_limits_halve_at_thirty_dollars(analysis, quote, spec, policy):
+    small = AccountSnapshot(Decimal("20"), "USD", True, 100)
+    threshold = AccountSnapshot(Decimal("30"), "USD", True, 100)
+
+    small_result = run_gate(analysis, small, quote, spec, policy)
+    threshold_result = run_gate(analysis, threshold, quote, spec, policy)
+
+    assert small_result.approved
+    assert threshold_result.approved
+    assert small_result.risk_budget == Decimal("2")
+    assert threshold_result.risk_budget == Decimal("1.5")
+
+    small_daily_stop = run_gate(
+        analysis, small, quote, spec, policy,
+        daily_realized_loss=Decimal("4"),
+    )
+    threshold_daily_stop = run_gate(
+        analysis, threshold, quote, spec, policy,
+        daily_realized_loss=Decimal("3"),
+    )
+    assert not small_daily_stop.approved
+    assert not threshold_daily_stop.approved
+    assert "daily realized-loss" in small_daily_stop.reasons[-1]
+    assert "daily realized-loss" in threshold_daily_stop.reasons[-1]
+
+
+def test_policy_defaults_to_ten_percent_and_twenty_percent():
+    policy = ExecutionPolicy()
+    assert policy.risk_percent == Decimal("10.0")
+    assert policy.max_daily_loss_percent == Decimal("20.0")
+    assert policy.reduced_risk_balance_threshold == Decimal("30.0")
+    assert policy.reduced_risk_multiplier == Decimal("0.5")
