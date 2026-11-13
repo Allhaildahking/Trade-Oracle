@@ -192,6 +192,90 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
         ]
         return candles[-limit:]
 
+    def get_candles_with_spread(
+        self,
+        instrument: str,
+        timeframe: Timeframe,
+        *,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int = 500,
+    ) -> list[Candle]:
+        """Fetch candles enriched with the first valid bid/ask tick in each bar.
+
+        MT5 OHLC rates do not contain historical bid/ask. This method uses
+        historical quote ticks and stores the first valid quote in each candle.
+        It is a bar-open spread snapshot, not tick-by-tick execution replay.
+        """
+        self._require_connection()
+        candles = self.get_candles(
+            instrument, timeframe, start=start, end=end, limit=limit
+        )
+        if not candles:
+            return []
+
+        copy_ticks_range = getattr(self._mt5, "copy_ticks_range", None)
+        tick_flag = getattr(self._mt5, "COPY_TICKS_INFO", None)
+        if copy_ticks_range is None or tick_flag is None:
+            raise RuntimeError("MT5 terminal does not support historical quote-tick retrieval")
+
+        interval = timedelta(minutes=_TIMEFRAME_MINUTES[timeframe])
+        first = candles[0].timestamp
+        last = candles[-1].timestamp + interval
+        ticks = copy_ticks_range(instrument, first, last, tick_flag)
+        if ticks is None:
+            raise RuntimeError(
+                f"MT5 historical tick request failed for {instrument}: "
+                f"{self._mt5.last_error()}"
+            )
+
+        by_time: list[tuple[datetime, Decimal, Decimal]] = []
+        for tick in ticks:
+            bid = _decimal(_field(tick, "bid"))
+            ask = _decimal(_field(tick, "ask"))
+            if bid <= 0 or ask < bid:
+                continue
+            time_msc = _field(tick, "time_msc")
+            timestamp = (
+                datetime.fromtimestamp(int(time_msc) / 1000, UTC)
+                if time_msc
+                else datetime.fromtimestamp(int(_field(tick, "time")), UTC)
+            )
+            by_time.append((timestamp, bid, ask))
+        by_time.sort(key=lambda item: item[0])
+
+        enriched: list[Candle] = []
+        tick_index = 0
+        for candle in candles:
+            bar_end = candle.timestamp + interval
+            while tick_index < len(by_time) and by_time[tick_index][0] < candle.timestamp:
+                tick_index += 1
+            cursor = tick_index
+            quote = None
+            while cursor < len(by_time) and by_time[cursor][0] < bar_end:
+                quote = by_time[cursor]
+                break
+            if quote is not None:
+                enriched.append(
+                    Candle(
+                        instrument=candle.instrument,
+                        timeframe=candle.timeframe,
+                        timestamp=candle.timestamp,
+                        open=candle.open,
+                        high=candle.high,
+                        low=candle.low,
+                        close=candle.close,
+                        volume=candle.volume,
+                        bid=quote[1],
+                        ask=quote[2],
+                        source=candle.source,
+                        is_complete=candle.is_complete,
+                    )
+                )
+            else:
+                enriched.append(candle)
+        return enriched
+
     def _ensure_symbol(self, instrument: str) -> None:
         info = self._mt5.symbol_info(instrument)
         if info is None:
