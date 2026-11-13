@@ -127,3 +127,10 @@ def test_blocks_missing_calendar() -> None:
         quote=quote(),
     )
     assert result.decision == "BLOCKED"
+
+
+
+def test_xauusd_micro_symbol_matches_usd_calendar_events() -> None:
+    from app.analysis.risk import _instrument_currencies
+
+    assert _instrument_currencies("XAUUSDmicro") == ("XAU", "USD")
