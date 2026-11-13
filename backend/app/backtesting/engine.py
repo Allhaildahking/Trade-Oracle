@@ -223,6 +223,9 @@ def run_backtest(
                 or analysis.risk is None
                 or not analysis.risk.valid
                 or analysis.risk.decision != "TRADE"
+                or analysis.risk.expires_at is None
+                or analysis.risk.expires_at <= bar_open
+                or analysis.risk.checked_at > signal_time
             ):
                 skipped += 1
             elif bar.bid is None or bar.ask is None or bar.ask < bar.bid:
@@ -248,6 +251,11 @@ def run_backtest(
                 ):
                     skipped += 1
                 else:
+                    actual_risk = abs(fill - trade.stop_loss)
+                    actual_reward = abs(trade.take_profit - fill)
+                    if actual_risk <= 0 or actual_reward / actual_risk < Decimal("2.5"):
+                        skipped += 1
+                        continue
                     # Size against the actual spread/slippage-adjusted fill, not
                     # the ideal signal price, so the risk cap remains real.
                     size = calculate_position_size(
