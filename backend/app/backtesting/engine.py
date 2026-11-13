@@ -83,6 +83,16 @@ class BacktestTrade:
 
 
 @dataclass(frozen=True, slots=True)
+class BacktestMonth:
+    year_month: str
+    trade_count: int
+    wins: int
+    losses: int
+    net_pnl: Decimal
+    win_rate_percent: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class BacktestResult:
     instrument: str
     starting_equity: Decimal
@@ -94,6 +104,12 @@ class BacktestResult:
     win_rate_percent: Decimal
     gross_profit: Decimal
     gross_loss: Decimal
+    average_win: Decimal
+    average_loss: Decimal
+    largest_win: Decimal
+    largest_loss: Decimal
+    average_rr: Decimal
+    monthly_breakdown: tuple[BacktestMonth, ...]
     profit_factor: Decimal | None
     expectancy_r: Decimal
     max_drawdown_percent: Decimal
@@ -324,7 +340,7 @@ def run_backtest(
                             gross_pnl=gross,
                             commission=position.commission,
                             net_pnl=net,
-                            result=result if net > 0 else "LOSS",
+                            result="WIN" if net > 0 else "LOSS",
                             r_multiple=(net / position.risk_cash)
                             if position.risk_cash > 0
                             else _ZERO,
@@ -408,6 +424,39 @@ def run_backtest(
     losses = sum(trade.net_pnl <= 0 for trade in trades)
     gross_profit = sum((max(_ZERO, trade.net_pnl) for trade in trades), _ZERO)
     gross_loss = sum((min(_ZERO, trade.net_pnl) for trade in trades), _ZERO)
+    winning_trades = [trade for trade in trades if trade.net_pnl > 0]
+    losing_trades = [trade for trade in trades if trade.net_pnl <= 0]
+    average_win = (
+        sum((trade.net_pnl for trade in winning_trades), _ZERO)
+        / Decimal(len(winning_trades))
+        if winning_trades
+        else _ZERO
+    )
+    average_loss = (
+        sum((trade.net_pnl for trade in losing_trades), _ZERO)
+        / Decimal(len(losing_trades))
+        if losing_trades
+        else _ZERO
+    )
+    monthly: dict[str, list[BacktestTrade]] = {}
+    for trade in trades:
+        key = trade.exit_time.strftime("%Y-%m")
+        monthly.setdefault(key, []).append(trade)
+    monthly_breakdown = tuple(
+        BacktestMonth(
+            year_month=month,
+            trade_count=len(rows),
+            wins=sum(row.net_pnl > 0 for row in rows),
+            losses=sum(row.net_pnl <= 0 for row in rows),
+            net_pnl=sum((row.net_pnl for row in rows), _ZERO),
+            win_rate_percent=(
+                Decimal(sum(row.net_pnl > 0 for row in rows))
+                / Decimal(len(rows))
+                * _ONE_HUNDRED
+            ),
+        )
+        for month, rows in sorted(monthly.items())
+    )
     profit_factor = (
         gross_profit / abs(gross_loss) if gross_loss < 0 else None
     )
@@ -431,6 +480,12 @@ def run_backtest(
         else _ZERO,
         gross_profit=gross_profit,
         gross_loss=gross_loss,
+        average_win=average_win,
+        average_loss=average_loss,
+        largest_win=max((trade.net_pnl for trade in trades), default=_ZERO),
+        largest_loss=min((trade.net_pnl for trade in trades), default=_ZERO),
+        average_rr=expectancy,
+        monthly_breakdown=monthly_breakdown,
         profit_factor=profit_factor,
         expectancy_r=expectancy,
         max_drawdown_percent=max_drawdown * _ONE_HUNDRED,
