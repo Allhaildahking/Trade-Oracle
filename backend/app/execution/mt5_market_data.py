@@ -22,6 +22,12 @@ _TIMEFRAME_MINUTES: dict[Timeframe, int] = {
     "15M": 15,
     "5M": 5,
 }
+_MT5_TIMEFRAME_CONSTANTS: dict[Timeframe, str] = {
+    "4H": "TIMEFRAME_H4",
+    "1H": "TIMEFRAME_H1",
+    "15M": "TIMEFRAME_M15",
+    "5M": "TIMEFRAME_M5",
+}
 
 
 class MetaTrader5MarketDataProvider(MarketDataProvider):
@@ -147,7 +153,7 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             raise ValueError("end must be timezone-aware")
 
         self._ensure_symbol(instrument)
-        mt5_timeframe = getattr(self._mt5, f"TIMEFRAME_{timeframe}")
+        mt5_timeframe = getattr(self._mt5, _MT5_TIMEFRAME_CONSTANTS[timeframe])
         if start is not None and end is not None:
             rates = self._mt5.copy_rates_range(
                 instrument, mt5_timeframe, start, end
