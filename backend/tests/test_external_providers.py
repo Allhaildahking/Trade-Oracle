@@ -50,3 +50,47 @@ def test_groq_returns_message(monkeypatch: pytest.MonkeyPatch) -> None:
     assert reasoner.complete(system="Be concise.", user="Summarize this.") == (
         "Structured market summary."
     )
+
+
+
+def test_alpha_vantage_requests_gold_market_news_and_tags_gold_headlines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.data.alpha_vantage as alpha_module
+    from app.data.alpha_vantage import AlphaVantageNewsProvider
+
+    captured: dict[str, object] = {}
+
+    def fake_get_json(url, params):
+        captured.update(params)
+        return {
+            "feed": [
+                {
+                    "url": "https://example.com/gold",
+                    "time_published": "20260925T120000",
+                    "title": "Central banks increase gold purchases",
+                    "summary": "Bullion demand rises.",
+                    "source": "Reuters",
+                    "topics": [{"topic": "forex:usd"}],
+                },
+                {
+                    "url": "https://example.com/tech",
+                    "time_published": "20260925T110000",
+                    "title": "Technology shares rally",
+                    "summary": "A broad equity-market session.",
+                    "source": "Reuters",
+                    "topics": [{"topic": "forex:usd"}],
+                },
+            ]
+        }
+
+    monkeypatch.setattr(alpha_module, "get_json", fake_get_json)
+    items = AlphaVantageNewsProvider("test-key").get_news(
+        currencies=("XAU", "USD"),
+        start=datetime(2026, 9, 25, tzinfo=UTC),
+        end=datetime(2026, 9, 26, tzinfo=UTC),
+    )
+
+    assert captured["topics"] == "forex:usd,financial_markets"
+    assert "XAU" in items[0].currencies
+    assert "XAU" not in items[1].currencies
