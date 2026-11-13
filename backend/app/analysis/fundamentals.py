@@ -246,10 +246,14 @@ def score_pair(
         live_intelligence = tuple(
             item for item in live_intelligence if item.timestamp <= as_of
         )
+    base = score_currency(currencies[0], events, news, live_intelligence)
     if currencies[0] == "XAU":
-        base = _score_gold_news(news)
-    else:
-        base = score_currency(currencies[0], events, news, live_intelligence)
+        gold_news_bias = _score_gold_news(news)
+        base = CurrencyBias(
+            "XAU",
+            max(Decimal("-10"), min(Decimal("10"), base.score + gold_news_bias.score)),
+            tuple((base.evidence + gold_news_bias.evidence)[-10:]),
+        )
     quote = score_currency(currencies[1], events, news, live_intelligence)
     score = base.score - quote.score
     direction = "BUY" if score > 0 else "SELL" if score < 0 else "NEUTRAL"
@@ -267,6 +271,22 @@ _CURRENCY_COUNTRIES = {
     "CAD": "canada",
     "AUD": "australia",
     "NZD": "new zealand",
+    "CNY": "china",
+    "CNH": "china",
+    "SEK": "sweden",
+    "NOK": "norway",
+    "SGD": "singapore",
+    "HKD": "hong kong",
+    "MXN": "mexico",
+    "ZAR": "south africa",
+    "TRY": "turkey",
+    "PLN": "poland",
+    "HUF": "hungary",
+    "CZK": "czech republic",
+    "ILS": "israel",
+    "KRW": "south korea",
+    "INR": "india",
+    "BRL": "brazil",
 }
 
 
