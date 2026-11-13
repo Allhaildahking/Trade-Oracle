@@ -180,3 +180,15 @@ def test_fundamental_strength_normalizes_pair_bias() -> None:
 
     assert fundamental_strength(strong) == 1.0
     assert fundamental_strength(neutral) == 0.0
+
+
+
+def test_xauusd_broker_suffix_maps_to_underlying_currencies() -> None:
+    result = score_pair(
+        "XAUUSDmicro",
+        events=[event("CPI", "3.0", "2.0")],
+        news=[],
+    )
+    assert result.instrument == "XAUUSDmicro"
+    assert result.direction == "SELL"
+    assert result.score == Decimal("-1.5")
