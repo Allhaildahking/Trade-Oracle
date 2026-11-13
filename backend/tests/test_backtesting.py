@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from app.backtesting.engine import BacktestConfig, run_backtest
@@ -9,7 +9,7 @@ from app.models.symbol import SymbolSpec
 from app.models.trade import TradeCandidate
 
 
-START = datetime(2026, 1, 5, 8, tzinfo=UTC)
+START = datetime(2026, 1, 5, 8, tzinfo=timezone.utc)
 
 
 def _candle(
