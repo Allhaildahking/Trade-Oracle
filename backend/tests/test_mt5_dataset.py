@@ -130,3 +130,72 @@ def test_saved_dataset_rejects_unknown_schema_version(tmp_path):
 
     with pytest.raises(ValueError, match="schema version"):
         load_historical_dataset(path)
+
+
+def test_merges_identical_boundary_candle_and_keeps_available_spread():
+    provider = FakeHistoricalProvider()
+    original = provider.get_candles_with_spread
+
+    def overlapping_provider(instrument, timeframe, *, start=None, end=None, limit=500):
+        rows = original(instrument, timeframe, start=start, end=end, limit=limit)
+        if start == START + timedelta(days=1):
+            rows[0] = Candle(
+                instrument=instrument,
+                timeframe=timeframe,
+                timestamp=START,
+                open=Decimal("1.1000"),
+                high=Decimal("1.1010"),
+                low=Decimal("1.0990"),
+                close=Decimal("1.1005"),
+                bid=Decimal("1.1004"),
+                ask=Decimal("1.1006"),
+                source="fake_mt5",
+                is_complete=True,
+            )
+        return rows
+
+    provider.get_candles_with_spread = overlapping_provider
+    dataset = collect_mt5_historical_dataset(
+        provider,
+        instrument="EURUSD",
+        start=START,
+        end=START + timedelta(days=2),
+        chunk_days=1,
+    )
+
+    assert len(dataset.candles["4H"]) == 2
+    assert dataset.candles["4H"][0].bid == Decimal("1.1004")
+    assert dataset.candles["4H"][0].ask == Decimal("1.1006")
+
+
+def test_still_rejects_duplicate_candles_with_different_ohlc():
+    provider = FakeHistoricalProvider()
+    original = provider.get_candles_with_spread
+
+    def conflicting_provider(instrument, timeframe, *, start=None, end=None, limit=500):
+        rows = original(instrument, timeframe, start=start, end=end, limit=limit)
+        if start == START + timedelta(days=1):
+            rows[0] = Candle(
+                instrument=instrument,
+                timeframe=timeframe,
+                timestamp=START,
+                open=Decimal("1.1000"),
+                high=Decimal("1.1020"),
+                low=Decimal("1.0990"),
+                close=Decimal("1.1005"),
+                bid=Decimal("1.1004"),
+                ask=Decimal("1.1006"),
+                source="fake_mt5",
+                is_complete=True,
+            )
+        return rows
+
+    provider.get_candles_with_spread = conflicting_provider
+    with pytest.raises(ValueError, match="conflicting duplicate 4H candle"):
+        collect_mt5_historical_dataset(
+            provider,
+            instrument="EURUSD",
+            start=START,
+            end=START + timedelta(days=2),
+            chunk_days=1,
+        )
