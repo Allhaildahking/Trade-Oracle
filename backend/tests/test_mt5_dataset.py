@@ -139,7 +139,7 @@ def test_merges_identical_boundary_candle_and_keeps_available_spread():
     def overlapping_provider(instrument, timeframe, *, start=None, end=None, limit=500):
         rows = original(instrument, timeframe, start=start, end=end, limit=limit)
         if start == START + timedelta(days=1):
-            rows[0] = Candle(
+            rows.append(Candle(
                 instrument=instrument,
                 timeframe=timeframe,
                 timestamp=START,
@@ -151,7 +151,7 @@ def test_merges_identical_boundary_candle_and_keeps_available_spread():
                 ask=Decimal("1.1006"),
                 source="fake_mt5",
                 is_complete=True,
-            )
+            ))
         return rows
 
     provider.get_candles_with_spread = overlapping_provider
