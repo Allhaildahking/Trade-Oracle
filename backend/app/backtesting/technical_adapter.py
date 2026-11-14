@@ -9,6 +9,7 @@ Its output is diagnostic only and must not be used for live execution.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -90,6 +91,13 @@ def build_technical_only_analyzer(
             pair_bias=pair_bias,
             htf_structure=htf_structure,
             liquidity_levels=levels,
+        )
+        setup = replace(
+            setup,
+            reasons=tuple(
+                reason.replace("fundamental bias:", "technical HTF bias:")
+                for reason in setup.reasons
+            ),
         )
         technical_score = _setup_score(setup)
         if setup.status != "CANDIDATE":
