@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -121,7 +121,7 @@ def test_technical_risk_records_fundamental_and_calendar_exclusions() -> None:
         setup_regime="TRENDING",
         quote=quote,
         checked_at=NOW,
-        expiry=__import__("datetime").timedelta(minutes=30),
+        expiry=timedelta(minutes=30),
         max_spread_ratio=Decimal("0.10"),
     )
 
@@ -137,7 +137,7 @@ def test_technical_risk_waits_when_historical_spread_is_missing() -> None:
         setup_regime="TRENDING",
         quote=None,
         checked_at=NOW,
-        expiry=__import__("datetime").timedelta(minutes=30),
+        expiry=timedelta(minutes=30),
         max_spread_ratio=Decimal("0.10"),
     )
 
