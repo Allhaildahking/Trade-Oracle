@@ -39,6 +39,10 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
         # Lazy import keeps the core analysis package usable away from Windows.
         self._mt5 = mt5_module
         self._connected = False
+        # Reuse one raw tick response across 4H/1H/15M/5M requests for the
+        # same symbol and collection window. The cache holds only one window.
+        self._tick_cache_key: tuple[str, datetime, datetime] | None = None
+        self._tick_cache: Any | None = None
 
     def connect(self, terminal_path: str | None = None) -> None:
         """Connect to the already-installed and logged-in MT5 desktop terminal."""
@@ -228,12 +232,72 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
         interval = timedelta(minutes=_TIMEFRAME_MINUTES[timeframe])
         first = candles[0].timestamp
         last = candles[-1].timestamp + interval
-        ticks = copy_ticks_range(instrument, first, last, tick_flag)
-        if ticks is None:
-            raise RuntimeError(
-                f"MT5 historical tick request failed for {instrument}: "
-                f"{self._mt5.last_error()}"
-            )
+        # During dataset collection all four timeframe calls share the same
+        # explicit daily window. Fetch the expensive tick array only once.
+        request_start = start if start is not None else first
+        request_end = end if end is not None else last
+        cache_key = (instrument, request_start, request_end)
+        if cache_key == self._tick_cache_key and self._tick_cache is not None:
+            ticks = self._tick_cache
+        else:
+            ticks = copy_ticks_range(instrument, request_start, request_end, tick_flag)
+            if ticks is None:
+                raise RuntimeError(
+                    f"MT5 historical tick request failed for {instrument} "
+                    f"{timeframe} {request_start.isoformat()}..{request_end.isoformat()}: "
+                    f"{self._mt5.last_error()}"
+                )
+            self._tick_cache_key = cache_key
+            self._tick_cache = ticks
+
+        # MT5 returns a NumPy structured array in chronological order. Keep
+        # timestamp conversion and quote selection vectorized; converting
+        # hundreds of thousands of ticks one-by-one into Python Decimals was
+        # the main collection bottleneck.
+        try:
+            import numpy as np
+
+            if isinstance(ticks, np.ndarray) and ticks.dtype.names:
+                tick_times = ticks["time_msc"].astype("int64", copy=False)
+                if len(tick_times) and np.any(tick_times[1:] < tick_times[:-1]):
+                    order = np.argsort(tick_times, kind="stable")
+                    ticks = ticks[order]
+                    tick_times = tick_times[order]
+                bids = ticks["bid"]
+                asks = ticks["ask"]
+                valid_indices = np.flatnonzero(
+                    (bids > 0) & (asks >= bids)
+                )
+                valid_times = tick_times[valid_indices]
+                enriched: list[Candle] = []
+                for candle in candles:
+                    bar_start_ms = int(candle.timestamp.timestamp() * 1000)
+                    bar_end_ms = int((candle.timestamp + interval).timestamp() * 1000)
+                    pos = int(np.searchsorted(valid_times, bar_start_ms, side="left"))
+                    if pos < len(valid_times) and valid_times[pos] < bar_end_ms:
+                        tick = ticks[int(valid_indices[pos])]
+                        bid, ask = _decimal(tick["bid"]), _decimal(tick["ask"])
+                        enriched.append(Candle(
+                            instrument=candle.instrument,
+                            timeframe=candle.timeframe,
+                            timestamp=candle.timestamp,
+                            open=candle.open,
+                            high=candle.high,
+                            low=candle.low,
+                            close=candle.close,
+                            volume=candle.volume,
+                            bid=bid,
+                            ask=ask,
+                            source=candle.source,
+                            is_complete=candle.is_complete,
+                        ))
+                    else:
+                        enriched.append(candle)
+                return enriched
+        except (ImportError, KeyError, TypeError, ValueError):
+            # Keep the generic path below for lightweight test doubles and
+            # alternative MT5-compatible providers.
+            pass
 
         by_time: list[tuple[datetime, Decimal, Decimal]] = []
         for tick in ticks:
@@ -250,34 +314,32 @@ class MetaTrader5MarketDataProvider(MarketDataProvider):
             by_time.append((timestamp, bid, ask))
         by_time.sort(key=lambda item: item[0])
 
-        enriched: list[Candle] = []
+        enriched = []
         tick_index = 0
         for candle in candles:
             bar_end = candle.timestamp + interval
             while tick_index < len(by_time) and by_time[tick_index][0] < candle.timestamp:
                 tick_index += 1
-            cursor = tick_index
-            quote = None
-            while cursor < len(by_time) and by_time[cursor][0] < bar_end:
-                quote = by_time[cursor]
-                break
+            quote = (
+                by_time[tick_index]
+                if tick_index < len(by_time) and by_time[tick_index][0] < bar_end
+                else None
+            )
             if quote is not None:
-                enriched.append(
-                    Candle(
-                        instrument=candle.instrument,
-                        timeframe=candle.timeframe,
-                        timestamp=candle.timestamp,
-                        open=candle.open,
-                        high=candle.high,
-                        low=candle.low,
-                        close=candle.close,
-                        volume=candle.volume,
-                        bid=quote[1],
-                        ask=quote[2],
-                        source=candle.source,
-                        is_complete=candle.is_complete,
-                    )
-                )
+                enriched.append(Candle(
+                    instrument=candle.instrument,
+                    timeframe=candle.timeframe,
+                    timestamp=candle.timestamp,
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                    volume=candle.volume,
+                    bid=quote[1],
+                    ask=quote[2],
+                    source=candle.source,
+                    is_complete=candle.is_complete,
+                ))
             else:
                 enriched.append(candle)
         return enriched
