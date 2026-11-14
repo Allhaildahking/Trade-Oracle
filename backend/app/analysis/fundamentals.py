@@ -93,6 +93,142 @@ def score_currency(
     return CurrencyBias(currency.upper(), score, tuple(evidence[-10:]))
 
 
+_GOLD_DRIVER_RULES: tuple[tuple[str, int, tuple[str, ...]], ...] = (
+    (
+        "real_yields_falling",
+        1,
+        (
+            "real yields fall",
+            "real yields decline",
+            "real yields drop",
+            "real rates fall",
+            "real rates decline",
+        ),
+    ),
+    (
+        "real_yields_rising",
+        -1,
+        (
+            "real yields rise",
+            "real yields climb",
+            "real yields jump",
+            "real rates rise",
+            "real rates climb",
+        ),
+    ),
+    (
+        "fed_dovish",
+        1,
+        (
+            "fed signals rate cuts",
+            "fed rate cut",
+            "fed turns dovish",
+            "dovish fed",
+            "monetary easing",
+        ),
+    ),
+    (
+        "fed_hawkish",
+        -1,
+        (
+            "fed signals rate hikes",
+            "fed rate hike",
+            "fed turns hawkish",
+            "hawkish fed",
+            "monetary tightening",
+        ),
+    ),
+    (
+        "usd_weakness",
+        1,
+        ("dollar weakens", "dollar falls", "usd weakens", "dollar slides"),
+    ),
+    (
+        "usd_strength",
+        -1,
+        ("dollar strengthens", "dollar rises", "usd strengthens", "dollar rallies"),
+    ),
+    (
+        "central_bank_buying",
+        1,
+        (
+            "central bank gold buying",
+            "central banks buy gold",
+            "central bank purchases gold",
+            "gold reserves increase",
+        ),
+    ),
+    (
+        "central_bank_selling",
+        -1,
+        (
+            "central bank gold selling",
+            "central banks sell gold",
+            "central bank sells gold",
+        ),
+    ),
+    (
+        "gold_etf_inflows",
+        1,
+        ("gold etf inflows", "gold etf sees inflows", "gold etf holdings rise"),
+    ),
+    (
+        "gold_etf_outflows",
+        -1,
+        ("gold etf outflows", "gold etf sees outflows", "gold etf holdings fall"),
+    ),
+    (
+        "geopolitical_escalation",
+        1,
+        (
+            "geopolitical tensions escalate",
+            "war escalates",
+            "military escalation",
+            "safe haven demand rises",
+        ),
+    ),
+    (
+        "geopolitical_relief",
+        -1,
+        (
+            "geopolitical tensions ease",
+            "ceasefire agreed",
+            "peace deal reached",
+            "safe haven demand fades",
+        ),
+    ),
+)
+
+
+def _gold_news_signal(item: NewsItem) -> tuple[Decimal, tuple[str, ...]]:
+    """Score only explicit, directional gold drivers; ambiguous headlines score zero."""
+    text = f"{item.title} {item.summary}".lower()
+    matches = [
+        (name, direction)
+        for name, direction, phrases in _GOLD_DRIVER_RULES
+        if any(phrase in text for phrase in phrases)
+    ]
+    directions = {direction for _, direction in matches}
+    if len(directions) != 1:
+        return Decimal("0"), ()
+    # One headline contributes at most one point, even if it repeats a driver.
+    direction = next(iter(directions))
+    names = ", ".join(name for name, _ in matches)
+    return Decimal(direction), (f"Gold driver: {names} ({item.title})",)
+
+
+def _score_gold_news(news: list[NewsItem]) -> CurrencyBias:
+    score = Decimal("0")
+    evidence: list[str] = []
+    for item in news:
+        signal, details = _gold_news_signal(item)
+        if signal:
+            score += signal
+            evidence.extend(details)
+    score = max(Decimal("-10"), min(Decimal("10"), score))
+    return CurrencyBias("XAU", score, tuple(evidence[-10:]))
+
+
 def score_pair(
     instrument: str,
     *,
@@ -101,8 +237,7 @@ def score_pair(
     live_intelligence: tuple[LiveIntelligence, ...] = (),
     as_of: datetime | None = None,
 ) -> PairBias:
-    if len(instrument) != 6 or not instrument.isalpha():
-        raise ValueError("Pair must be a six-letter currency symbol.")
+    currencies = _instrument_currencies(instrument)
     if as_of is not None and as_of.tzinfo is None:
         raise ValueError("as_of must be timezone-aware")
     if as_of is not None:
@@ -111,8 +246,15 @@ def score_pair(
         live_intelligence = tuple(
             item for item in live_intelligence if item.timestamp <= as_of
         )
-    base = score_currency(instrument[:3], events, news, live_intelligence)
-    quote = score_currency(instrument[3:], events, news, live_intelligence)
+    base = score_currency(currencies[0], events, news, live_intelligence)
+    if currencies[0] == "XAU":
+        gold_news_bias = _score_gold_news(news)
+        base = CurrencyBias(
+            "XAU",
+            max(Decimal("-10"), min(Decimal("10"), base.score + gold_news_bias.score)),
+            tuple((base.evidence + gold_news_bias.evidence)[-10:]),
+        )
+    quote = score_currency(currencies[1], events, news, live_intelligence)
     score = base.score - quote.score
     direction = "BUY" if score > 0 else "SELL" if score < 0 else "NEUTRAL"
     return PairBias(
@@ -129,6 +271,22 @@ _CURRENCY_COUNTRIES = {
     "CAD": "canada",
     "AUD": "australia",
     "NZD": "new zealand",
+    "CNY": "china",
+    "CNH": "china",
+    "SEK": "sweden",
+    "NOK": "norway",
+    "SGD": "singapore",
+    "HKD": "hong kong",
+    "MXN": "mexico",
+    "ZAR": "south africa",
+    "TRY": "turkey",
+    "PLN": "poland",
+    "HUF": "hungary",
+    "CZK": "czech republic",
+    "ILS": "israel",
+    "KRW": "south korea",
+    "INR": "india",
+    "BRL": "brazil",
 }
 
 
@@ -156,11 +314,8 @@ def build_pair_bias(
         raise ValueError("as_of must be timezone-aware")
     if lookback < timedelta(0) or lookahead < timedelta(0):
         raise ValueError("lookback and lookahead must not be negative")
-    if len(instrument) != 6 or not instrument.isalpha():
-        raise ValueError("instrument must be a six-letter currency pair")
-
+    currencies = _instrument_currencies(instrument)
     pair = instrument.upper()
-    currencies = (pair[:3], pair[3:])
     countries = tuple(
         _CURRENCY_COUNTRIES[currency]
         for currency in currencies
@@ -184,3 +339,14 @@ def build_pair_bias(
         live_intelligence=live_intelligence,
         as_of=as_of,
     )
+
+
+
+def _instrument_currencies(instrument: str) -> tuple[str, str]:
+    """Resolve broker symbols to their underlying fundamental currencies."""
+    symbol = instrument.upper()
+    if symbol.startswith("XAUUSD"):
+        return "XAU", "USD"
+    if len(symbol) == 6 and symbol.isalpha():
+        return symbol[:3], symbol[3:]
+    raise ValueError("instrument must be a supported six-letter pair or XAUUSD broker symbol")
