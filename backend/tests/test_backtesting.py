@@ -1,4 +1,5 @@
 # ruff: noqa: I001
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -36,17 +37,17 @@ def _candle(
     )
 
 
-def _analysis() -> OracleAnalysis:
+def _analysis(*, wider_target: bool = False) -> OracleAnalysis:
     trade = TradeCandidate(
         instrument="EURUSD",
         direction="BUY",
         status="VALID",
         entry=Decimal("1.1000"),
         stop_loss=Decimal("1.0980"),
-        take_profit=Decimal("1.1058"),
+        take_profit=Decimal("1.1065" if wider_target else "1.1058"),
         risk_distance=Decimal("0.0020"),
-        reward_distance=Decimal("0.0050"),
-        risk_reward=Decimal("2.5"),
+        reward_distance=Decimal("0.0065" if wider_target else "0.0050"),
+        risk_reward=Decimal("3.25" if wider_target else "2.5"),
         invalidation=Decimal("1.0980"),
         reasons=(),
     )
@@ -135,6 +136,7 @@ def test_backtest_uses_only_closed_candles_and_enters_next_bar() -> None:
 
     assert result.trade_count == 1
     assert result.trades[0].entry_time == exit_bar.timestamp
+    assert result.trades[0].entry == Decimal("1.1002")
     assert result.trades[0].result == "WIN"
     assert seen[0][0] == START + timedelta(minutes=5)
     assert seen[0][1] == 1
@@ -216,3 +218,254 @@ def test_missing_spread_blocks_entry_instead_of_assuming_zero() -> None:
     assert result.trade_count == 0
     assert result.skipped_signals >= 1
     assert any("spread" in warning for warning in result.warnings)
+
+
+def _sell_analysis(*, wider_target: bool = False) -> OracleAnalysis:
+    trade = TradeCandidate(
+        instrument="EURUSD",
+        direction="SELL",
+        status="VALID",
+        entry=Decimal("1.1000"),
+        stop_loss=Decimal("1.1020"),
+        take_profit=Decimal("1.0930" if wider_target else "1.0945"),
+        risk_distance=Decimal("0.0020"),
+        reward_distance=Decimal("0.0070" if wider_target else "0.0055"),
+        risk_reward=Decimal("3.5" if wider_target else "2.75"),
+        invalidation=Decimal("1.1020"),
+        reasons=(),
+    )
+    risk = RiskValidation(
+        instrument="EURUSD",
+        decision="TRADE",
+        valid=True,
+        reasons=(),
+        checked_at=START,
+        expires_at=START + timedelta(minutes=30),
+    )
+    return OracleAnalysis(
+        instrument="EURUSD",
+        decision="TRADE",
+        technical_score=1.0,
+        weighted_score=1.0,
+        setup=None,
+        confirmation=None,
+        trade=trade,
+        risk=risk,
+        reasons=(),
+    )
+
+
+def test_sell_entry_uses_bid_and_sell_stop_uses_ask() -> None:
+    candles = _inputs(
+        _candle("5M", START + timedelta(minutes=5))
+    )
+    # The Bid high touches the stop, matching the converted Ask stop.
+    candles["5M"][2] = _candle(
+        "5M",
+        START + timedelta(minutes=10),
+        open_price="1.1000",
+        high="1.1020",
+        low="1.0990",
+        close="1.1005",
+    )
+
+    calls = 0
+
+    def analyzer(as_of, history):
+        nonlocal calls
+        calls += 1
+        return _sell_analysis(wider_target=True) if calls == 1 else OracleAnalysis(
+            instrument="EURUSD",
+            decision="NO_TRADE",
+            technical_score=0,
+            weighted_score=0,
+            setup=None,
+            confirmation=None,
+            trade=None,
+            risk=None,
+            reasons=(),
+        )
+
+    result = run_backtest(
+        instrument="EURUSD",
+        candles=candles,
+        symbol_spec=_spec(),
+        analyzer=analyzer,
+        config=BacktestConfig(starting_equity=Decimal("100")),
+    )
+
+    assert result.trade_count == 1
+    trade = result.trades[0]
+    assert trade.direction == "SELL"
+    assert trade.entry == Decimal("1.1000")
+    assert trade.exit == Decimal("1.1022")
+    assert trade.result == "LOSS"
+
+
+def test_buy_stop_gap_fills_at_worse_bar_open() -> None:
+    candles = _inputs(
+        _candle("5M", START + timedelta(minutes=5))
+    )
+    candles["5M"][2] = _candle(
+        "5M",
+        START + timedelta(minutes=10),
+        open_price="1.0970",
+        high="1.0985",
+        low="1.0960",
+        close="1.0975",
+    )
+
+    calls = 0
+
+    def analyzer(as_of, history):
+        nonlocal calls
+        calls += 1
+        return _analysis() if calls == 1 else OracleAnalysis(
+            instrument="EURUSD",
+            decision="NO_TRADE",
+            technical_score=0,
+            weighted_score=0,
+            setup=None,
+            confirmation=None,
+            trade=None,
+            risk=None,
+            reasons=(),
+        )
+
+    result = run_backtest(
+        instrument="EURUSD",
+        candles=candles,
+        symbol_spec=_spec(),
+        analyzer=analyzer,
+        config=BacktestConfig(starting_equity=Decimal("100")),
+    )
+
+    assert result.trade_count == 1
+    trade = result.trades[0]
+    assert trade.direction == "BUY"
+    assert trade.result == "LOSS"
+    assert trade.exit == Decimal("1.0970")
+
+
+def test_buy_slippage_is_applied_to_entry_and_exit() -> None:
+    candles = _inputs(
+        _candle("5M", START + timedelta(minutes=5))
+    )
+
+    calls = 0
+
+    def analyzer(as_of, history):
+        nonlocal calls
+        calls += 1
+        return _analysis(wider_target=True) if calls == 1 else OracleAnalysis(
+            instrument="EURUSD",
+            decision="NO_TRADE",
+            technical_score=0,
+            weighted_score=0,
+            setup=None,
+            confirmation=None,
+            trade=None,
+            risk=None,
+            reasons=(),
+        )
+
+    result = run_backtest(
+        instrument="EURUSD",
+        candles=candles,
+        symbol_spec=_spec(),
+        analyzer=analyzer,
+        config=BacktestConfig(
+            starting_equity=Decimal("100"),
+            slippage_ticks_per_side=Decimal("1"),
+        ),
+    )
+
+    assert result.trade_count == 1
+    trade = result.trades[0]
+    assert trade.entry == Decimal("1.1003")
+    assert trade.exit == Decimal("1.0999")
+
+def test_sell_slippage_is_applied_to_entry_and_exit() -> None:
+    candles = _inputs(
+        _candle("5M", START + timedelta(minutes=5))
+    )
+
+    calls = 0
+
+    def analyzer(as_of, history):
+        nonlocal calls
+        calls += 1
+        return _sell_analysis(wider_target=True) if calls == 1 else OracleAnalysis(
+            instrument="EURUSD",
+            decision="NO_TRADE",
+            technical_score=0,
+            weighted_score=0,
+            setup=None,
+            confirmation=None,
+            trade=None,
+            risk=None,
+            reasons=(),
+        )
+
+    result = run_backtest(
+        instrument="EURUSD",
+        candles=candles,
+        symbol_spec=_spec(),
+        analyzer=analyzer,
+        config=BacktestConfig(
+            starting_equity=Decimal("100"),
+            slippage_ticks_per_side=Decimal("1"),
+        ),
+    )
+
+    assert result.trade_count == 1
+    trade = result.trades[0]
+    assert trade.direction == "SELL"
+    assert trade.entry == Decimal("1.0999")
+    assert trade.exit == Decimal("1.1003")
+    assert trade.result == "LOSS"
+
+def test_sell_position_with_missing_final_spread_is_reported_open() -> None:
+    candles = _inputs(
+        _candle("5M", START + timedelta(minutes=5))
+    )
+    last = candles["5M"][-1]
+    candles["5M"].append(
+        replace(
+            last,
+            timestamp=last.timestamp + timedelta(minutes=5),
+            bid=None,
+            ask=None,
+        )
+    )
+
+    calls = 0
+
+    def analyzer(as_of, history):
+        nonlocal calls
+        calls += 1
+        return _sell_analysis(wider_target=True) if calls == 1 else OracleAnalysis(
+            instrument="EURUSD",
+            decision="NO_TRADE",
+            technical_score=0,
+            weighted_score=0,
+            setup=None,
+            confirmation=None,
+            trade=None,
+            risk=None,
+            reasons=(),
+        )
+
+    result = run_backtest(
+        instrument="EURUSD",
+        candles=candles,
+        symbol_spec=_spec(),
+        analyzer=analyzer,
+        config=BacktestConfig(starting_equity=Decimal("100")),
+    )
+
+    assert result.trade_count == 0
+    assert result.open_position is not None
+    assert result.open_position.direction == "SELL"
+    assert result.open_position.entry == Decimal("1.1000")
+    assert any("final spread is missing" in warning for warning in result.warnings)

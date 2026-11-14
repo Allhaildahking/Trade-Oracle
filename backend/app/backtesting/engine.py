@@ -28,6 +28,30 @@ _ZERO = Decimal("0")
 _ONE_HUNDRED = Decimal("100")
 
 
+def _spread(bar: Candle) -> Decimal | None:
+    """Return a valid per-bar spread snapshot, or None when unavailable."""
+    if (
+        bar.bid is None
+        or bar.ask is None
+        or bar.bid <= 0
+        or bar.ask < bar.bid
+    ):
+        return None
+    return bar.ask - bar.bid
+
+
+def _ask_ohlc(
+    bar: Candle, spread: Decimal
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Approximate Ask OHLC from Bid OHLC and this bar's spread snapshot."""
+    return (
+        bar.open + spread,
+        bar.high + spread,
+        bar.low + spread,
+        bar.close + spread,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class BacktestConfig:
     starting_equity: Decimal
@@ -93,6 +117,18 @@ class BacktestMonth:
 
 
 @dataclass(frozen=True, slots=True)
+class BacktestOpenPosition:
+    instrument: str
+    direction: str
+    signal_time: datetime
+    entry_time: datetime
+    entry: Decimal
+    stop_loss: Decimal
+    take_profit: Decimal
+    volume: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class BacktestResult:
     instrument: str
     starting_equity: Decimal
@@ -118,6 +154,7 @@ class BacktestResult:
     skipped_signals: int
     trades: tuple[BacktestTrade, ...]
     warnings: tuple[str, ...]
+    open_position: BacktestOpenPosition | None = None
 
 
 Analyzer = Callable[[datetime, Mapping[str, list[Candle]]], OracleAnalysis]
@@ -149,8 +186,10 @@ def run_backtest(
 
     Analyzer is called at each 5M close and receives only candles whose close
     time is <= that timestamp. Signals enter no earlier than the next 5M open.
-    If SL and TP are both touched in one bar, SL is assumed first. Missing
-    bid/ask spread data blocks entry rather than silently assuming zero spread.
+    Candles are treated as Bid-based. BUY entries execute on Ask; SELL
+    entries execute on Bid. SELL exits use an Ask-OHLC approximation from
+    each bar's spread snapshot. Missing spread blocks entries. If SL and TP
+    are both touched in one bar, SL is assumed first.
     """
     if symbol_spec.instrument != instrument:
         raise ValueError("symbol_spec instrument must match requested instrument")
@@ -237,40 +276,62 @@ def run_backtest(
                     if equity >= config.reduced_risk_balance_threshold
                     else config.risk_below_threshold_percent
                 )
-                half_spread = (bar.ask - bar.bid) / Decimal("2")
-                slippage = config.slippage_ticks_per_side * symbol_spec.trade_tick_size
-                fill = (
-                    bar.open + half_spread + slippage
-                    if trade.direction == "BUY"
-                    else bar.open - half_spread - slippage
+                spread = _spread(bar)
+                slippage = (
+                    config.slippage_ticks_per_side * symbol_spec.trade_tick_size
                 )
-                # Reject a gap that makes the original stop invalid.
-                if (
-                    (trade.direction == "BUY" and fill <= trade.stop_loss)
-                    or (trade.direction == "SELL" and fill >= trade.stop_loss)
-                ):
+
+                if spread is None:
+                    skipped += 1
+                    warnings.append(
+                        f"Skipped entry at {bar_open.isoformat()}: missing/invalid spread"
+                    )
+                elif trade.direction not in {"BUY", "SELL"}:
                     skipped += 1
                 else:
-                    exit_cost = half_spread + slippage
-                    actual_risk = abs(fill - trade.stop_loss) + exit_cost
-                    actual_reward = abs(trade.take_profit - fill) - exit_cost
+                    # OHLC candles are Bid-based. A BUY opens at Ask; a SELL
+                    # opens at Bid. Slippage is adverse on both entry sides.
+                    fill = (
+                        bar.open + spread + slippage
+                        if trade.direction == "BUY"
+                        else bar.open - slippage
+                    )
+                    # Convert Bid-chart levels to executable prices.
+                    executable_stop = (
+                        trade.stop_loss - slippage
+                        if trade.direction == "BUY"
+                        else trade.stop_loss + spread + slippage
+                    )
+
+                    executable_target = (
+                        trade.take_profit
+                        if trade.direction == "BUY"
+                        else trade.take_profit + spread
+                    )
+
+                    actual_risk = (
+                        fill - executable_stop
+                        if trade.direction == "BUY"
+                        else executable_stop - fill
+                    )
+
+                    actual_reward = (
+                        executable_target - fill
+                        if trade.direction == "BUY"
+                        else fill - executable_target
+                    )
+
                     if actual_risk <= 0 or actual_reward <= 0:
                         skipped += 1
                     elif actual_reward / actual_risk < Decimal("2.5"):
                         skipped += 1
                     else:
-                        # Reserve for estimated spread/slippage on both sides.
-                        sizing_stop = (
-                            trade.stop_loss - exit_cost
-                            if trade.direction == "BUY"
-                            else trade.stop_loss + exit_cost
-                        )
                         size = calculate_position_size(
                             equity=equity,
                             risk_percent=risk_pct,
                             direction=trade.direction,
                             entry=fill,
-                            stop_loss=sizing_stop,
+                            stop_loss=executable_stop,
                             spec=symbol_spec,
                         )
                         if not size.accepted or size.volume is None:
@@ -292,77 +353,100 @@ def run_backtest(
                                 take_profit=trade.take_profit,
                                 volume=size.volume,
                                 risk_cash=risk_cash,
-                                commission=config.commission_per_lot_round_turn * size.volume,
+                                commission=(
+                                    config.commission_per_lot_round_turn * size.volume
+                                ),
                             )
 
         # Resolve exits conservatively. Both touched means stop loss first.
         if open_trade is not None:
             position = open_trade
-            hit_sl = (
-                bar.low <= position.stop_loss
-                if position.direction == "BUY"
-                else bar.high >= position.stop_loss
+            slippage = (
+                config.slippage_ticks_per_side * symbol_spec.trade_tick_size
             )
-            hit_tp = (
-                bar.high >= position.take_profit
-                if position.direction == "BUY"
-                else bar.low <= position.take_profit
-            )
-            exit_price: Decimal | None = None
-            if hit_sl:
-                exit_price = position.stop_loss
-            elif hit_tp:
-                exit_price = position.take_profit
+            exit_fill: Decimal | None = None
 
-            if exit_price is not None:
-                if bar.bid is None or bar.ask is None or bar.ask < bar.bid:
-                    skipped += 1
+            if position.direction == "BUY":
+                # Long positions close on Bid. No spread adjustment is needed.
+                hit_sl = bar.low <= position.stop_loss
+                hit_tp = bar.high >= position.take_profit
+
+                if hit_sl:
+                    # A gap through the stop fills at the worse opening price.
+                    exit_fill = min(position.stop_loss, bar.open) - slippage
+                elif hit_tp:
+                    # A favorable gap through a limit target gets the better open.
+                    exit_fill = max(position.take_profit, bar.open)
+
+            else:
+                # Short positions close on Ask. Ask OHLC is approximated using
+                # this bar's spread snapshot, not a tick-by-tick quote history.
+                spread = _spread(bar)
+                if spread is None:
                     warnings.append(
-                        f"Exit spread missing at {bar_close.isoformat()}; "
-                        "position remains open for conservative later resolution"
+                        f"SELL exit spread missing at {bar_close.isoformat()}; "
+                        "position remains open"
                     )
                 else:
-                    half_spread = (bar.ask - bar.bid) / Decimal("2")
-                    slippage = config.slippage_ticks_per_side * symbol_spec.trade_tick_size
-                    fill = (
-                        exit_price - half_spread - slippage
-                        if position.direction == "BUY"
-                        else exit_price + half_spread + slippage
+                    ask_open, ask_high, ask_low, _ask_close = _ask_ohlc(
+                        bar, spread
                     )
-                    sign = Decimal("1") if position.direction == "BUY" else Decimal("-1")
-                    gross = (
-                        (fill - position.entry)
-                        / symbol_spec.trade_tick_size
-                        * symbol_spec.trade_tick_value_loss
-                        * position.volume
-                        * sign
+
+                    # Convert Bid-chart levels to Ask-side prices.
+                    ask_stop = position.stop_loss + spread
+                    ask_target = position.take_profit + spread
+
+                    hit_sl = ask_high >= ask_stop
+                    hit_tp = ask_low <= ask_target
+
+                    if hit_sl:
+                        # A gap above the stop fills at the worse Ask open.
+                        exit_fill = max(ask_stop, ask_open) + slippage
+                    elif hit_tp:
+                        # A favorable gap below a limit target gets the better Ask open.
+                        exit_fill = min(ask_target, ask_open)
+            # SL has priority because it is checked before TP above.
+            if exit_fill is not None:
+                sign = (
+                    Decimal("1")
+                    if position.direction == "BUY"
+                    else Decimal("-1")
+                )
+                gross = (
+                    (exit_fill - position.entry)
+                    / symbol_spec.trade_tick_size
+                    * symbol_spec.trade_tick_value_loss
+                    * position.volume
+                    * sign
+                )
+                net = gross - position.commission
+                equity += net
+                trades.append(
+                    BacktestTrade(
+                        instrument=instrument,
+                        direction=position.direction,
+                        signal_time=position.signal_time,
+                        entry_time=position.entry_time,
+                        exit_time=bar_close,
+                        entry=position.entry,
+                        exit=exit_fill,
+                        stop_loss=position.stop_loss,
+                        take_profit=position.take_profit,
+                        volume=position.volume,
+                        gross_pnl=gross,
+                        commission=position.commission,
+                        net_pnl=net,
+                        result="WIN" if net > 0 else "LOSS",
+                        r_multiple=(net / position.risk_cash)
+                        if position.risk_cash > 0
+                        else _ZERO,
                     )
-                    net = gross - position.commission
-                    equity += net
-                    trades.append(
-                        BacktestTrade(
-                            instrument=instrument,
-                            direction=position.direction,
-                            signal_time=position.signal_time,
-                            entry_time=position.entry_time,
-                            exit_time=bar_close,
-                            entry=position.entry,
-                            exit=fill,
-                            stop_loss=position.stop_loss,
-                            take_profit=position.take_profit,
-                            volume=position.volume,
-                            gross_pnl=gross,
-                            commission=position.commission,
-                            net_pnl=net,
-                            result="WIN" if net > 0 else "LOSS",
-                            r_multiple=(net / position.risk_cash)
-                            if position.risk_cash > 0
-                            else _ZERO,
-                        )
-                    )
-                    consecutive_losses = consecutive_losses + 1 if net <= 0 else 0
-                    max_consecutive_losses = max(max_consecutive_losses, consecutive_losses)
-                    open_trade = None
+                )
+                consecutive_losses = consecutive_losses + 1 if net <= 0 else 0
+                max_consecutive_losses = max(
+                    max_consecutive_losses, consecutive_losses
+                )
+                open_trade = None
 
         peak_equity = max(peak_equity, equity)
         if peak_equity > 0:
@@ -393,16 +477,27 @@ def run_backtest(
     # Force-close any remaining position at the last available close, with costs.
     if open_trade is not None:
         last = bars[-1]
-        if last.bid is not None and last.ask is not None and last.ask >= last.bid:
-            position = open_trade
-            half_spread = (last.ask - last.bid) / Decimal("2")
-            slippage = config.slippage_ticks_per_side * symbol_spec.trade_tick_size
-            fill = (
-                last.close - half_spread - slippage
+        position = open_trade
+        spread = _spread(last)
+        slippage = (
+            config.slippage_ticks_per_side * symbol_spec.trade_tick_size
+        )
+
+        if position.direction == "BUY":
+            # A long closes at the final Bid close.
+            fill = last.close - slippage
+        elif spread is not None:
+            # A short closes at the approximated final Ask close.
+            fill = last.close + spread + slippage
+        else:
+            fill = None
+
+        if fill is not None:
+            sign = (
+                Decimal("1")
                 if position.direction == "BUY"
-                else last.close + half_spread + slippage
+                else Decimal("-1")
             )
-            sign = Decimal("1") if position.direction == "BUY" else Decimal("-1")
             gross = (
                 (fill - position.entry)
                 / symbol_spec.trade_tick_size
@@ -428,11 +523,17 @@ def run_backtest(
                     commission=position.commission,
                     net_pnl=net,
                     result="WIN" if net > 0 else "LOSS",
-                    r_multiple=net / position.risk_cash if position.risk_cash > 0 else _ZERO,
+                    r_multiple=(
+                        net / position.risk_cash
+                        if position.risk_cash > 0
+                        else _ZERO
+                    ),
                 )
             )
         else:
-            warnings.append("Open position could not be force-closed: final spread is missing")
+            warnings.append(
+                "Open position could not be force-closed: final spread is missing"
+            )
 
     wins = sum(trade.net_pnl > 0 for trade in trades)
     losses = sum(trade.net_pnl <= 0 for trade in trades)
@@ -508,4 +609,18 @@ def run_backtest(
         skipped_signals=skipped,
         trades=tuple(trades),
         warnings=tuple(dict.fromkeys(warnings)),
+        open_position=(
+            BacktestOpenPosition(
+                instrument=open_trade.instrument,
+                direction=open_trade.direction,
+                signal_time=open_trade.signal_time,
+                entry_time=open_trade.entry_time,
+                entry=open_trade.entry,
+                stop_loss=open_trade.stop_loss,
+                take_profit=open_trade.take_profit,
+                volume=open_trade.volume,
+            )
+            if open_trade is not None
+            else None
+        ),
     )
