@@ -175,7 +175,7 @@ def test_still_rejects_duplicate_candles_with_different_ohlc():
     def conflicting_provider(instrument, timeframe, *, start=None, end=None, limit=500):
         rows = original(instrument, timeframe, start=start, end=end, limit=limit)
         if start == START + timedelta(days=1):
-            rows[0] = Candle(
+            rows.append(Candle(
                 instrument=instrument,
                 timeframe=timeframe,
                 timestamp=START,
@@ -187,7 +187,7 @@ def test_still_rejects_duplicate_candles_with_different_ohlc():
                 ask=Decimal("1.1006"),
                 source="fake_mt5",
                 is_complete=True,
-            )
+            ))
         return rows
 
     provider.get_candles_with_spread = conflicting_provider
