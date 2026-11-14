@@ -260,4 +260,7 @@ def test_analyzer_can_produce_a_flagged_technical_only_diagnostic(monkeypatch) -
     assert result.risk is not None and result.risk.valid
     assert callback_calls == [NOW + timedelta(minutes=5)]
     assert any("TECHNICAL-ONLY DIAGNOSTIC" in reason for reason in result.reasons)
-    assert any("economic-calendar filters are intentionally excluded" in reason for reason in result.reasons)
+    assert any(
+        "economic-calendar filters are intentionally excluded" in reason
+        for reason in result.reasons
+    )
