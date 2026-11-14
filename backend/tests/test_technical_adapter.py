@@ -9,6 +9,7 @@ from app.backtesting.technical_adapter import (
     _technical_risk,
     build_technical_only_analyzer,
 )
+from app.core.constants import TECHNICAL_WEIGHT
 from app.models.market import Candle, Quote
 from app.models.confirmation import Confirmation5M
 from app.models.regime import RegimeSnapshot
@@ -258,6 +259,7 @@ def test_analyzer_can_produce_a_flagged_technical_only_diagnostic(monkeypatch) -
 
     assert result.decision == "TRADE"
     assert result.risk is not None and result.risk.valid
+    assert result.weighted_score == round(result.technical_score * TECHNICAL_WEIGHT, 4)
     assert callback_calls == [NOW + timedelta(minutes=5)]
     assert any("TECHNICAL-ONLY DIAGNOSTIC" in reason for reason in result.reasons)
     assert any(
