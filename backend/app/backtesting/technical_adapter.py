@@ -31,6 +31,7 @@ LiquidityLevelsAt = Callable[
 
 _DEFAULT_EXPIRY = timedelta(minutes=30)
 _DEFAULT_MAX_SPREAD_RATIO = Decimal("0.10")
+_MINIMUM_15M_CANDLES = 71
 
 
 def build_technical_only_analyzer(
@@ -69,6 +70,12 @@ def build_technical_only_analyzer(
         _validate_history(instrument, candles_1h, "1H")
         _validate_history(instrument, candles_15m, "15M")
         _validate_history(instrument, candles_5m, "5M")
+        if len(candles_15m) < _MINIMUM_15M_CANDLES:
+            return _no_trade(
+                instrument,
+                "15M regime warm-up requires at least "
+                f"{_MINIMUM_15M_CANDLES} completed candles",
+            )
 
         htf_structure = (
             detect_structure(candles_4h),
