@@ -14,11 +14,11 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from app.analysis.confirmation_5m import confirm_5m
-from app.core.constants import TECHNICAL_WEIGHT
 from app.analysis.liquidity import map_liquidity
 from app.analysis.setup import detect_setup_candidate
 from app.analysis.structure import detect_structure
 from app.analysis.trade import construct_trade
+from app.core.constants import TECHNICAL_WEIGHT
 from app.models.fundamental import CurrencyBias, PairBias
 from app.models.liquidity import LiquidityLevel
 from app.models.market import Candle, Quote
