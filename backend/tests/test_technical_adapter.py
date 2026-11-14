@@ -78,7 +78,7 @@ def test_structure_bias_uses_latest_htf_event_and_marks_it_technical() -> None:
     assert "direction derived from 4H BOS" in bias.evidence[0]
 
 
-def test_analyzer_returns_no_trade_without_htf_directional_evidence() -> None:
+def test_analyzer_returns_no_trade_during_regime_warmup() -> None:
     analyzer = build_technical_only_analyzer(instrument="XAUUSDmicro")
     history = {
         "4H": [_candle("4H")],
@@ -91,7 +91,7 @@ def test_analyzer_returns_no_trade_without_htf_directional_evidence() -> None:
 
     assert result.decision == "NO_TRADE"
     assert result.trade is None
-    assert any("no completed 4H/1H structure event" in reason for reason in result.reasons)
+    assert any("15M regime warm-up requires at least 71" in reason for reason in result.reasons)
 
 
 def test_analyzer_rejects_non_chronological_history() -> None:
