@@ -18,12 +18,13 @@ from app.analysis.liquidity import map_liquidity
 from app.analysis.setup import detect_setup_candidate
 from app.analysis.structure import detect_structure
 from app.analysis.trade import construct_trade
-from app.backtesting.engine import Analyzer
 from app.models.fundamental import CurrencyBias, PairBias
 from app.models.liquidity import LiquidityLevel
 from app.models.market import Candle, Quote
 from app.models.oracle import OracleAnalysis
 from app.models.risk import RiskValidation
+
+TechnicalAnalyzer = Callable[[datetime, Mapping[str, list[Candle]]], OracleAnalysis]
 
 LiquidityLevelsAt = Callable[
     [datetime, Mapping[str, list[Candle]]], tuple[LiquidityLevel, ...]
@@ -40,7 +41,7 @@ def build_technical_only_analyzer(
     liquidity_levels_at: LiquidityLevelsAt | None = None,
     expiry: timedelta = _DEFAULT_EXPIRY,
     max_spread_ratio: Decimal = _DEFAULT_MAX_SPREAD_RATIO,
-) -> Analyzer:
+) -> TechnicalAnalyzer:
     """Build an isolated analyzer that excludes all fundamental/news filters.
 
     The directional bias is the most recent completed 4H/1H structure event.
