@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -109,11 +110,41 @@ def collect_mt5_historical_dataset(
                 if not candle.is_complete:
                     continue
                 existing = collected[timeframe].get(candle.timestamp)
-                if existing is not None and existing != candle:
-                    raise ValueError(
-                        f"conflicting duplicate {timeframe} candle at "
-                        f"{candle.timestamp.isoformat()}"
+                if existing is not None:
+                    same_market_bar = (
+                        existing.instrument == candle.instrument
+                        and existing.timeframe == candle.timeframe
+                        and existing.timestamp == candle.timestamp
+                        and existing.open == candle.open
+                        and existing.high == candle.high
+                        and existing.low == candle.low
+                        and existing.close == candle.close
+                        and existing.volume == candle.volume
                     )
+                    if not same_market_bar:
+                        raise ValueError(
+                            f"conflicting duplicate {timeframe} candle at "
+                            f"{candle.timestamp.isoformat()}"
+                        )
+
+                    existing_has_spread = (
+                        existing.bid is not None
+                        and existing.ask is not None
+                        and existing.bid > 0
+                        and existing.ask >= existing.bid
+                    )
+                    candle_has_spread = (
+                        candle.bid is not None
+                        and candle.ask is not None
+                        and candle.bid > 0
+                        and candle.ask >= candle.bid
+                    )
+                    if not existing_has_spread and candle_has_spread:
+                        collected[timeframe][candle.timestamp] = replace(
+                            existing, bid=candle.bid, ask=candle.ask
+                        )
+                    continue
+
                 collected[timeframe][candle.timestamp] = candle
         cursor = chunk_end
 
