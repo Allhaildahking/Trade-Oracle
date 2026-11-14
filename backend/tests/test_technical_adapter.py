@@ -10,6 +10,9 @@ from app.backtesting.technical_adapter import (
     build_technical_only_analyzer,
 )
 from app.models.market import Candle, Quote
+from app.models.confirmation import Confirmation5M
+from app.models.regime import RegimeSnapshot
+from app.models.setup import SetupCandidate
 from app.models.structure import StructureEvent, StructureSnapshot, SwingPoint
 from app.models.trade import TradeCandidate
 
@@ -147,3 +150,114 @@ def test_technical_risk_waits_when_historical_spread_is_missing() -> None:
 
     assert risk.valid is False
     assert risk.decision == "WAIT"
+
+
+
+def test_analyzer_can_produce_a_flagged_technical_only_diagnostic(monkeypatch) -> None:
+    from app.backtesting import technical_adapter
+
+    swing = SwingPoint(
+        instrument="XAUUSDmicro",
+        timeframe="4H",
+        timestamp=NOW,
+        price=Decimal("3990"),
+        kind="HIGH",
+        index=1,
+    )
+    event = StructureEvent(
+        instrument="XAUUSDmicro",
+        timeframe="4H",
+        timestamp=NOW,
+        price=Decimal("4000"),
+        kind="BOS",
+        direction="BULLISH",
+        broken_swing=swing,
+    )
+    snapshot = StructureSnapshot(swings=(swing,), events=(event,))
+    regime = RegimeSnapshot(
+        instrument="XAUUSDmicro",
+        timeframe="15M",
+        regime="TRENDING",
+        atr=1.0,
+        baseline_atr=1.0,
+        volatility_ratio=1.0,
+        directional_efficiency=0.6,
+        range_to_atr=2.0,
+        sample_size=20,
+    )
+    setup = SetupCandidate(
+        instrument="XAUUSDmicro",
+        timeframe="15M",
+        direction="BUY",
+        status="CANDIDATE",
+        fundamental_score=Decimal("0"),
+        regime=regime,
+        structure_events=(event,),
+        sweep=None,
+        displacement=None,
+        break_retest=None,
+        reasons=("technical HTF bias: BUY",),
+    )
+    confirmation = Confirmation5M(
+        instrument="XAUUSDmicro",
+        timeframe="5M",
+        direction="BUY",
+        status="CONFIRMED",
+        structure_events=(event,),
+        displacement=None,
+        sweep=None,
+        reasons=("5M confirmation passed",),
+    )
+    monkeypatch.setattr(
+        technical_adapter,
+        "detect_structure",
+        lambda candles: snapshot,
+    )
+    monkeypatch.setattr(
+        technical_adapter,
+        "detect_setup_candidate",
+        lambda *args, **kwargs: setup,
+    )
+    monkeypatch.setattr(
+        technical_adapter,
+        "confirm_5m",
+        lambda *args, **kwargs: confirmation,
+    )
+    monkeypatch.setattr(
+        technical_adapter,
+        "construct_trade",
+        lambda **kwargs: _trade(),
+    )
+    callback_calls = []
+    analyzer = build_technical_only_analyzer(
+        instrument="XAUUSDmicro",
+        liquidity_levels_at=lambda as_of, history: callback_calls.append(as_of) or (),
+    )
+    history = {
+        "4H": [_candle("4H")],
+        "1H": [_candle("1H")],
+        "15M": [
+            Candle(
+                instrument="XAUUSDmicro",
+                timeframe="15M",
+                timestamp=NOW + timedelta(minutes=15 * index),
+                open=Decimal("4000"),
+                high=Decimal("4001"),
+                low=Decimal("3999"),
+                close=Decimal("4000"),
+                bid=Decimal("3999.99"),
+                ask=Decimal("4000.01"),
+                is_complete=True,
+            )
+            for index in range(71)
+        ],
+        "5M": [_candle("5M")],
+    }
+
+    result = analyzer(NOW + timedelta(minutes=5), history)
+
+    assert result.decision == "TRADE"
+    assert result.risk is not None and result.risk.valid
+    assert callback_calls == [NOW + timedelta(minutes=5)]
+    assert any("TECHNICAL-ONLY DIAGNOSTIC" in reason for reason in result.reasons)
+    assert any("economic-calendar filters are intentionally excluded" in reason for reason in result.reasons)
