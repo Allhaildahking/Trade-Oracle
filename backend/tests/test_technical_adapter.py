@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -127,7 +128,10 @@ def test_technical_risk_records_fundamental_and_calendar_exclusions() -> None:
 
     assert risk.valid is True
     assert risk.decision == "TRADE"
-    assert any("economic-calendar filters are intentionally excluded" in reason for reason in risk.reasons)
+    assert any(
+        "economic-calendar filters are intentionally excluded" in reason
+        for reason in risk.reasons
+    )
     assert any("not approved for live execution" in reason for reason in risk.reasons)
 
 
