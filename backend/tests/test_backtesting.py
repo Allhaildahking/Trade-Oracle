@@ -469,3 +469,94 @@ def test_sell_position_with_missing_final_spread_is_reported_open() -> None:
     assert result.open_position.direction == "SELL"
     assert result.open_position.entry == Decimal("1.1000")
     assert any("final spread is missing" in warning for warning in result.warnings)
+
+
+
+def test_confidence_halves_fixed_cash_risk_for_accounts_up_to_fifteen() -> None:
+    exit_bar = _candle(
+        "5M",
+        START + timedelta(minutes=5),
+        high="1.1060",
+        low="1.0990",
+    )
+
+    def run(score: float):
+        calls = 0
+
+        def analyzer(as_of, history):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return replace(_analysis(), technical_score=score)
+            return OracleAnalysis(
+                instrument="EURUSD",
+                decision="NO_TRADE",
+                technical_score=0,
+                weighted_score=0,
+                setup=None,
+                confirmation=None,
+                trade=None,
+                risk=None,
+                reasons=(),
+            )
+
+        return run_backtest(
+            instrument="EURUSD",
+            candles=_inputs(exit_bar),
+            symbol_spec=_spec(),
+            analyzer=analyzer,
+            config=BacktestConfig(starting_equity=Decimal("10")),
+        )
+
+    high = run(0.70)
+    low = run(0.69)
+
+    assert high.trade_count == 1
+    assert low.trade_count == 1
+    assert high.trades[0].volume == Decimal("0.17")
+    assert low.trades[0].volume == Decimal("0.08")
+
+
+def test_confidence_halves_percentage_risk_above_fifteen() -> None:
+    exit_bar = _candle(
+        "5M",
+        START + timedelta(minutes=5),
+        high="1.1060",
+        low="1.0990",
+    )
+
+    def run(score: float):
+        calls = 0
+
+        def analyzer(as_of, history):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return replace(_analysis(), technical_score=score)
+            return OracleAnalysis(
+                instrument="EURUSD",
+                decision="NO_TRADE",
+                technical_score=0,
+                weighted_score=0,
+                setup=None,
+                confirmation=None,
+                trade=None,
+                risk=None,
+                reasons=(),
+            )
+
+        return run_backtest(
+            instrument="EURUSD",
+            candles=_inputs(exit_bar),
+            symbol_spec=_spec(),
+            analyzer=analyzer,
+            config=BacktestConfig(starting_equity=Decimal("20")),
+        )
+
+    high = run(0.70)
+    low = run(0.69)
+
+    assert high.trade_count == 1
+    assert low.trade_count == 1
+    assert high.trades[0].volume == Decimal("0.10")
+    assert low.trades[0].volume == Decimal("0.05")
