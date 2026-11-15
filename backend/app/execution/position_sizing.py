@@ -47,8 +47,8 @@ def calculate_position_size(
         budget = min(risk_budget_cash, equity)
     else:
         assert risk_percent is not None
-        if not Decimal("0") < risk_percent <= Decimal("100"):
-            raise ValueError("risk_percent must be greater than 0 and at most 100")
+        if not Decimal("0") < risk_percent <= Decimal("10"):
+            raise ValueError("risk_percent must be greater than 0 and at most 10")
         budget = equity * risk_percent / Decimal("100")
     if entry <= 0 or stop_loss <= 0:
         raise ValueError("entry and stop_loss must be positive")
