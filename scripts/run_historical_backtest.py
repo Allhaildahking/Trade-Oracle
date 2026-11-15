@@ -16,7 +16,7 @@ from app.backtesting.technical_adapter import build_technical_only_analyzer
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True, type=Path)
-    parser.add_argument("--starting-equity", required=True, type=Decimal)
+    parser.add_argument("--starting-equity", type=Decimal, default=Decimal("10"))
     parser.add_argument("--output", type=Path, default=Path("backtest-report.json"))
     parser.add_argument("--risk-below-threshold", type=Decimal, default=Decimal("1"))
     parser.add_argument("--risk-at-or-above-threshold", type=Decimal, default=Decimal("0.5"))
