@@ -56,6 +56,8 @@ def _ask_ohlc(
 class BacktestConfig:
     starting_equity: Decimal
     max_risk_per_trade_cash: Decimal = Decimal("3.50")
+    risk_above_cash_threshold_percent: Decimal = Decimal("10")
+    cash_risk_balance_threshold: Decimal = Decimal("15")
     daily_loss_below_threshold_percent: Decimal = Decimal("20")
     daily_loss_at_or_above_threshold_percent: Decimal = Decimal("10")
     reduced_risk_balance_threshold: Decimal = Decimal("30")
@@ -69,6 +71,10 @@ class BacktestConfig:
             raise ValueError("starting_equity must be positive")
         if self.max_risk_per_trade_cash <= 0:
             raise ValueError("max_risk_per_trade_cash must be positive")
+        if not _ZERO < self.risk_above_cash_threshold_percent <= Decimal("10"):
+            raise ValueError("risk_above_cash_threshold_percent must be in (0, 10]")
+        if self.cash_risk_balance_threshold <= 0:
+            raise ValueError("cash_risk_balance_threshold must be positive")
         if not (
             _ZERO < self.daily_loss_below_threshold_percent <= Decimal("20")
             and _ZERO < self.daily_loss_at_or_above_threshold_percent <= Decimal("20")
@@ -267,9 +273,15 @@ def run_backtest(
                 skipped += 1
                 warnings.append(f"Skipped entry at {bar_open.isoformat()}: missing/invalid spread")
             else:
-                # Fixed cash risk ceiling. The balance is only used to ensure
-                # the budget never exceeds available equity.
-                risk_budget_cash = min(config.max_risk_per_trade_cash, equity)
+                # Accounts up to and including $15 use a fixed $3.50 cap.
+                # Above $15, use 10% of current equity.
+                risk_budget_cash = (
+                    min(config.max_risk_per_trade_cash, equity)
+                    if equity <= config.cash_risk_balance_threshold
+                    else equity
+                    * config.risk_above_cash_threshold_percent
+                    / _ONE_HUNDRED
+                )
                 spread = _spread(bar)
                 slippage = (
                     config.slippage_ticks_per_side * symbol_spec.trade_tick_size
