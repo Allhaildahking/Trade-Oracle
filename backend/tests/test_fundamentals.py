@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 
 from app.analysis.fundamentals import score_pair
-from app.models.fundamental import EconomicEvent
+from app.models.fundamental import EconomicEvent, NewsItem
 from app.models.live_intelligence import LiveIntelligence
 
 
@@ -180,3 +180,105 @@ def test_fundamental_strength_normalizes_pair_bias() -> None:
 
     assert fundamental_strength(strong) == 1.0
     assert fundamental_strength(neutral) == 0.0
+
+
+
+def test_xauusd_broker_suffix_maps_to_underlying_currencies() -> None:
+    result = score_pair(
+        "XAUUSDmicro",
+        events=[event("CPI", "3.0", "2.0")],
+        news=[],
+    )
+    assert result.instrument == "XAUUSDmicro"
+    assert result.direction == "SELL"
+    assert result.score == Decimal("-1.5")
+
+def gold_news(title: str, *, timestamp: datetime | None = None) -> NewsItem:
+    return NewsItem(
+        news_id=title,
+        timestamp=timestamp or datetime(2026, 9, 25, tzinfo=UTC),
+        title=title,
+        summary="",
+        source_name="Reuters",
+        url=None,
+        currencies=("USD",),
+    )
+
+
+def test_gold_pair_uses_explicit_gold_drivers() -> None:
+    result = score_pair(
+        "XAUUSD",
+        events=[],
+        news=[gold_news("Real yields fall as the Fed turns dovish")],
+    )
+    assert result.base.currency == "XAU"
+    assert result.base.score == Decimal("1")
+    assert result.direction == "BUY"
+    assert any("real_yields_falling" in item for item in result.base.evidence)
+
+
+def test_gold_pair_ignores_ambiguous_or_conflicting_headlines() -> None:
+    result = score_pair(
+        "XAUUSDmicro",
+        events=[],
+        news=[
+            gold_news("Real yields fall while the dollar strengthens"),
+            gold_news("Gold market outlook remains uncertain"),
+        ],
+    )
+    assert result.base.score == Decimal("0")
+    assert result.direction == "NEUTRAL"
+
+
+def test_gold_fundamentals_respect_as_of_time() -> None:
+    result = score_pair(
+        "XAUUSD",
+        events=[],
+        news=[
+            gold_news(
+                "Central banks buy gold",
+                timestamp=datetime(2026, 9, 26, tzinfo=UTC),
+            )
+        ],
+        as_of=datetime(2026, 9, 25, tzinfo=UTC),
+    )
+    assert result.base.score == Decimal("0")
+    assert result.direction == "NEUTRAL"
+
+
+@pytest.mark.parametrize(
+    ("instrument", "base_currency", "quote_currency"),
+    [
+        ("EURUSD", "EUR", "USD"),
+        ("GBPJPY", "GBP", "JPY"),
+        ("AUDCAD", "AUD", "CAD"),
+        ("NZDCHF", "NZD", "CHF"),
+        ("USDMXN", "USD", "MXN"),
+        ("EURZAR", "EUR", "ZAR"),
+        ("USDTRY", "USD", "TRY"),
+        ("XAUUSDmicro", "XAU", "USD"),
+    ],
+)
+def test_fundamental_scoring_supports_multiple_instrument_families(
+    instrument: str, base_currency: str, quote_currency: str
+) -> None:
+    result = score_pair(instrument, events=[], news=[])
+    assert result.base.currency == base_currency
+    assert result.quote.currency == quote_currency
+
+
+def test_gold_fundamentals_keep_usd_news_and_macro_scoring() -> None:
+    usd_news = NewsItem(
+        news_id="usd-1",
+        timestamp=datetime(2026, 9, 25, tzinfo=UTC),
+        title="US dollar outlook",
+        summary="",
+        source_name="Reuters",
+        url=None,
+        currencies=("USD",),
+        sentiment_score=Decimal("-0.6"),
+    )
+    result = score_pair("XAUUSD", events=[], news=[usd_news])
+    assert result.quote.score == Decimal("-0.6")
+    assert result.direction == "BUY"
+

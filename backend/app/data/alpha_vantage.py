@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 import os
+import re
 
 from app.data.base import NewsProvider
 from app.data.http import ProviderError, get_json
@@ -51,7 +52,17 @@ class AlphaVantageNewsProvider(NewsProvider):
             "apikey": self.api_key,
         }
         if currencies:
-            params["topics"] = ",".join(f"forex:{currency.lower()}" for currency in currencies)
+            topics = [
+                f"forex:{currency.lower()}"
+                for currency in currencies
+                if currency.upper() != "XAU"
+            ]
+            if "XAU" in {currency.upper() for currency in currencies}:
+                # Alpha Vantage has no forex:XAU topic; use broad market news
+                # and tag only headlines that explicitly discuss gold.
+                topics.append("financial_markets")
+            if topics:
+                params["topics"] = ",".join(dict.fromkeys(topics))
         if start:
             params["time_from"] = start.astimezone(UTC).strftime("%Y%m%dT%H%M")
         if end:
@@ -69,12 +80,20 @@ class AlphaVantageNewsProvider(NewsProvider):
             for topic in row.get("topics", []):
                 if isinstance(topic, dict) and str(topic.get("topic", "")).startswith("forex:"):
                     currencies_seen.add(str(topic["topic"]).split(":", 1)[1].upper())
+            title = str(row.get("title", ""))
+            summary = str(row.get("summary", ""))
+            if "XAU" in {currency.upper() for currency in currencies} and re.search(
+                r"\b(gold|bullion|precious metals?)\b",
+                f"{title} {summary}",
+                re.IGNORECASE,
+            ):
+                currencies_seen.add("XAU")
             items.append(
                 NewsItem(
                     news_id=str(row.get("url") or row.get("title")),
                     timestamp=_parse_timestamp(row.get("time_published")),
-                    title=str(row.get("title", "")),
-                    summary=str(row.get("summary", "")),
+                    title=title,
+                    summary=summary,
                     source_name=str(row.get("source", "")),
                     url=str(row["url"]) if row.get("url") else None,
                     currencies=tuple(sorted(currencies_seen)),

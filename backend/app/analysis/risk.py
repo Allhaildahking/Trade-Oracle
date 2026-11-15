@@ -152,8 +152,9 @@ def validate_trade(
 
 
 def _instrument_currencies(instrument: str) -> tuple[str, ...]:
-    if instrument == "XAUUSD":
+    symbol = instrument.upper()
+    if symbol.startswith("XAUUSD"):
         return ("XAU", "USD")
-    if len(instrument) == 6:
-        return (instrument[:3], instrument[3:])
-    return (instrument,)
+    if len(symbol) == 6 and symbol.isalpha():
+        return (symbol[:3], symbol[3:])
+    return (symbol,)

@@ -2,13 +2,13 @@
 
 **A Forex market-intelligence engine built around structured, auditable trade analysis.**
 
-Trade Oracle is designed to evaluate market conditions and produce clearly defined trade opportunities. It does not connect to a broker, place orders, or manage live positions.
+Trade Oracle evaluates market conditions and produces clearly defined trade opportunities. Broker execution remains experimental, disabled by default, and restricted to demo-account development.
 
 ## Project status
 
-**Status: Foundation phase**
+**Status: Analysis foundation + experimental Deriv MT5 integration + draft execution safeguards**
 
-The analytical foundation is being developed. Production market-data providers and broker integrations are not connected, and the project should not be treated as a live signal service.
+The `feat/deriv-mt5-market-data` work adds a read-only MT5 adapter, broker symbol specifications, account-equity access, and deterministic risk-based position sizing. The `feat/mt5-autonomous-execution` work adds a fail-closed approval gate. Neither branch has been validated against a connected Deriv demo terminal. The approval gate does not send orders or manage positions. Do not treat this project as a live trading system.
 
 ## V1 scope
 
@@ -44,17 +44,32 @@ A no-trade result is valid. The system should not force a setup when market cond
 
 ## Development priorities
 
-1. Build and test the core analysis pipeline.
-2. Define consistent data structures for market context and trade candidates.
-3. Validate the instrument-selection process against recorded evidence.
-4. Add reliable market-data providers.
-5. Build reporting and notification layers after the analytical foundation is stable.
+1. Validate the analysis pipeline and its deterministic inputs/outputs.
+2. Build a realistic historical backtester that reuses the existing analysis pipeline.
+3. Add out-of-sample and demo forward testing with execution-cost and failure simulation.
+4. Validate broker data and execution safeguards on a Deriv demo terminal.
+5. Consider live execution only after documented validation and explicit approval.
 
 These are development priorities, not claims that the features are already complete.
 
+## Deriv MT5 development setup
+
+The MT5 Python package is an optional Windows-only dependency. On the Windows terminal machine, install the project and development tools with:
+
+```powershell
+py -3.13 -m venv .venv
+.venv\\Scripts\\Activate.ps1
+python -m pip install -e ".[dev,mt5]"
+python scripts/check_mt5_demo.py
+```
+
+The diagnostic script refuses to continue if the connected account is not a demo account. It prints account equity/currency and broker-reported symbol values without placing orders.
+
+The execution and historical backtest sizing policy uses a tiered per-trade risk rule. High-confidence setups (technical score >= 0.70) use the full tier budget; lower-confidence setups use half. Accounts with equity up to and including USD 15 have a maximum cash-loss budget of USD 3.50 (capped by available equity); accounts above USD 15 use 10% of current equity. The technical score is a setup-quality score, not a statistically calibrated win probability. Position sizing rounds volume down and rejects a trade if the broker minimum would exceed the applicable risk budget. The USD 3.50 amount is a hard ceiling for the lower balance tier, not a recommended amount to risk on every trade. Daily realized-loss protection is separate: 20% below USD 30 equity and 10% from USD 30 upward. Confirm actual symbol tick value, tick size, contract size, and volume limits from the connected Deriv demo terminal; test fixtures are not broker specifications.
+
 ## Boundaries
 
-Trade Oracle is currently a development project. It does not provide guaranteed outcomes, execute trades, or replace independent risk management. Any future live integration will require separate testing, safeguards, and explicit controls.
+Trade Oracle is a development project. It does not provide guaranteed outcomes, execute orders, or replace independent risk management. Execution remains disabled by default. Any future broker order integration requires extensive backtesting, demo forward testing, reconciliation, safeguards, and explicit approval.
 
 ---
 

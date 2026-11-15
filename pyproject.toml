@@ -17,6 +17,9 @@ dev = [
   "pytest>=8.0",
   "ruff>=0.6",
 ]
+mt5 = [
+  "MetaTrader5>=5.0.6231; platform_system == 'Windows'",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
