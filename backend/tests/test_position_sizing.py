@@ -113,3 +113,33 @@ def test_rejects_unknown_direction(micro_spec):
             stop_loss=Decimal("2349"),
             spec=micro_spec,
         )
+
+
+def test_fixed_cash_budget_never_exceeds_three_fifty(micro_spec):
+    result = calculate_position_size(
+        equity=Decimal("10"),
+        risk_budget_cash=Decimal("3.50"),
+        direction="BUY",
+        entry=Decimal("2350"),
+        stop_loss=Decimal("2349"),
+        spec=micro_spec,
+    )
+
+    assert result.accepted
+    assert result.risk_budget == Decimal("3.50")
+    assert result.estimated_loss <= Decimal("3.50")
+
+
+def test_cash_budget_is_capped_by_available_equity(micro_spec):
+    result = calculate_position_size(
+        equity=Decimal("2"),
+        risk_budget_cash=Decimal("3.50"),
+        direction="BUY",
+        entry=Decimal("2350"),
+        stop_loss=Decimal("2349"),
+        spec=micro_spec,
+    )
+
+    assert result.accepted
+    assert result.risk_budget == Decimal("2")
+    assert result.estimated_loss <= Decimal("2")
