@@ -21,6 +21,8 @@ def main() -> int:
     parser.add_argument("--max-risk-per-trade", type=Decimal, default=Decimal("3.50"))
     parser.add_argument("--cash-risk-balance-threshold", type=Decimal, default=Decimal("15"))
     parser.add_argument("--risk-above-cash-threshold-percent", type=Decimal, default=Decimal("10"))
+    parser.add_argument("--high-confidence-score-threshold", type=Decimal, default=Decimal("0.70"))
+    parser.add_argument("--low-confidence-risk-multiplier", type=Decimal, default=Decimal("0.50"))
     parser.add_argument("--daily-loss-below-threshold", type=Decimal, default=Decimal("3"))
     parser.add_argument("--daily-loss-at-or-above-threshold", type=Decimal, default=Decimal("2"))
     parser.add_argument("--reduced-risk-balance-threshold", type=Decimal, default=Decimal("30"))
@@ -36,6 +38,8 @@ def main() -> int:
         max_risk_per_trade_cash=args.max_risk_per_trade,
         cash_risk_balance_threshold=args.cash_risk_balance_threshold,
         risk_above_cash_threshold_percent=args.risk_above_cash_threshold_percent,
+        high_confidence_score_threshold=args.high_confidence_score_threshold,
+        low_confidence_risk_multiplier=args.low_confidence_risk_multiplier,
         daily_loss_below_threshold_percent=args.daily_loss_below_threshold,
         daily_loss_at_or_above_threshold_percent=args.daily_loss_at_or_above_threshold,
         reduced_risk_balance_threshold=args.reduced_risk_balance_threshold,
@@ -68,6 +72,9 @@ def main() -> int:
             "max_risk_per_trade_cash": str(config.max_risk_per_trade_cash),
             "cash_risk_balance_threshold": str(config.cash_risk_balance_threshold),
             "risk_above_cash_threshold_percent": str(config.risk_above_cash_threshold_percent),
+            "high_confidence_score_threshold": str(config.high_confidence_score_threshold),
+            "low_confidence_risk_multiplier": str(config.low_confidence_risk_multiplier),
+            "confidence_score_note": "technical score threshold, not a calibrated win probability",
             "daily_loss_below_threshold_percent": str(
                 config.daily_loss_below_threshold_percent
             ),
