@@ -23,25 +23,21 @@ class ExecutionPolicy:
 
     enabled: bool = False
     require_demo_account: bool = True
-    risk_percent: Decimal = Decimal("10.0")
-    max_risk_percent: Decimal = Decimal("10.0")
+    max_risk_per_trade_cash: Decimal = Decimal("3.50")
     max_daily_loss_percent: Decimal = Decimal("20.0")
     reduced_risk_balance_threshold: Decimal = Decimal("30.0")
-    reduced_risk_multiplier: Decimal = Decimal("0.5")
     max_open_positions: int = 1
     max_spread_to_risk: Decimal = Decimal("0.10")
     max_quote_age: timedelta = timedelta(seconds=10)
     allowed_instruments: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not Decimal("0") < self.risk_percent <= self.max_risk_percent <= Decimal("10"):
-            raise ValueError("risk must be positive and capped at 10 percent")
+        if self.max_risk_per_trade_cash <= 0:
+            raise ValueError("max_risk_per_trade_cash must be positive")
         if self.max_daily_loss_percent <= 0 or self.max_daily_loss_percent > 20:
             raise ValueError("max_daily_loss_percent must be in (0, 20]")
         if self.reduced_risk_balance_threshold <= 0:
             raise ValueError("reduced_risk_balance_threshold must be positive")
-        if not Decimal("0") < self.reduced_risk_multiplier <= Decimal("1"):
-            raise ValueError("reduced_risk_multiplier must be in (0, 1]")
         if self.max_open_positions < 1:
             raise ValueError("max_open_positions must be at least 1")
         if self.max_spread_to_risk < 0:
@@ -113,13 +109,14 @@ def approve_execution(
         return reject("balance-based risk tiers require a USD-denominated account")
     if open_positions >= policy.max_open_positions:
         return reject("maximum open-position limit reached")
-    risk_multiplier = (
-        policy.reduced_risk_multiplier
+    # Per-trade risk is a fixed cash ceiling, not a percentage of equity.
+    risk_budget_cash = min(policy.max_risk_per_trade_cash, account.equity)
+    # Daily protection remains a separate percentage-based account limit.
+    effective_daily_loss_percent = (
+        policy.max_daily_loss_percent / Decimal("2")
         if account.equity >= policy.reduced_risk_balance_threshold
-        else Decimal("1")
+        else policy.max_daily_loss_percent
     )
-    effective_risk_percent = policy.risk_percent * risk_multiplier
-    effective_daily_loss_percent = policy.max_daily_loss_percent * risk_multiplier
 
     if daily_realized_loss >= account.equity * effective_daily_loss_percent / Decimal("100"):
         return reject("daily realized-loss limit reached")
@@ -154,7 +151,7 @@ def approve_execution(
 
     size: PositionSize = calculate_position_size(
         equity=account.equity,
-        risk_percent=effective_risk_percent,
+        risk_budget_cash=risk_budget_cash,
         direction=trade.direction,
         entry=trade.entry,
         stop_loss=trade.stop_loss,
@@ -167,7 +164,7 @@ def approve_execution(
         (
             "Oracle decision and risk validation passed",
             (
-                f"effective risk is {effective_risk_percent}% per trade; "
+                f"maximum per-trade cash risk is {risk_budget_cash}; "
                 f"daily loss cutoff is {effective_daily_loss_percent}%"
             ),
             "account, instrument, quote, and position limits passed",
