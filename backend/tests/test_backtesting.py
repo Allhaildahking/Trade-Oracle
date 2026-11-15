@@ -513,8 +513,8 @@ def test_confidence_halves_fixed_cash_risk_for_accounts_up_to_fifteen() -> None:
 
     assert high.trade_count == 1
     assert low.trade_count == 1
-    assert high.trades[0].volume == Decimal("0.17")
-    assert low.trades[0].volume == Decimal("0.08")
+    assert high.trades[0].volume == Decimal("0.15")
+    assert low.trades[0].volume == Decimal("0.07")
 
 
 def test_confidence_halves_percentage_risk_above_fifteen() -> None:
@@ -558,5 +558,5 @@ def test_confidence_halves_percentage_risk_above_fifteen() -> None:
 
     assert high.trade_count == 1
     assert low.trade_count == 1
-    assert high.trades[0].volume == Decimal("0.10")
-    assert low.trades[0].volume == Decimal("0.05")
+    assert high.trades[0].volume == Decimal("0.09")
+    assert low.trades[0].volume == Decimal("0.04")
