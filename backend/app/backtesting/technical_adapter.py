@@ -154,7 +154,7 @@ def build_technical_only_analyzer(
                 instrument=instrument,
                 decision="NO_TRADE",
                 technical_score=technical_score,
-                weighted_score=technical_score,
+                weighted_score=round(technical_score * TECHNICAL_WEIGHT, 4),
                 setup=setup,
                 confirmation=confirmation,
                 trade=trade,
