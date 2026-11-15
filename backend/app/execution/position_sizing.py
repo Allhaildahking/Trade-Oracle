@@ -8,8 +8,6 @@ from decimal import ROUND_DOWN, Decimal
 from app.models.symbol import SymbolSpec
 from app.models.trade import TradeDirection
 
-MAX_RISK_PERCENT = Decimal("10")
-
 
 @dataclass(frozen=True, slots=True)
 class PositionSize:
@@ -24,23 +22,34 @@ class PositionSize:
 def calculate_position_size(
     *,
     equity: Decimal,
-    risk_percent: Decimal,
     direction: TradeDirection,
     entry: Decimal,
     stop_loss: Decimal,
     spec: SymbolSpec,
+    risk_budget_cash: Decimal | None = None,
+    risk_percent: Decimal | None = None,
 ) -> PositionSize:
-    """Size down to the broker's volume step; never round risk upward.
+    """Size down to the broker's volume step without exceeding a cash budget.
 
-    Tick value is the broker-reported loss value for one tick at one lot.
-    A result below the broker minimum is rejected, never rounded up to minimum.
+    New callers should provide risk_budget_cash. risk_percent remains as a
+    backwards-compatible input for older integrations and tests. Supplying
+    both is rejected to avoid ambiguous risk settings.
     """
     if equity <= 0:
         raise ValueError("equity must be positive")
     if direction not in ("BUY", "SELL"):
         raise ValueError("direction must be BUY or SELL")
-    if not Decimal("0") < risk_percent <= MAX_RISK_PERCENT:
-        raise ValueError("risk_percent must be greater than 0 and at most 10")
+    if (risk_budget_cash is None) == (risk_percent is None):
+        raise ValueError("provide exactly one of risk_budget_cash or risk_percent")
+    if risk_budget_cash is not None:
+        if risk_budget_cash <= 0:
+            raise ValueError("risk_budget_cash must be positive")
+        budget = min(risk_budget_cash, equity)
+    else:
+        assert risk_percent is not None
+        if not Decimal("0") < risk_percent <= Decimal("100"):
+            raise ValueError("risk_percent must be greater than 0 and at most 100")
+        budget = equity * risk_percent / Decimal("100")
     if entry <= 0 or stop_loss <= 0:
         raise ValueError("entry and stop_loss must be positive")
     if direction == "BUY" and stop_loss >= entry:
@@ -48,7 +57,6 @@ def calculate_position_size(
     if direction == "SELL" and stop_loss <= entry:
         raise ValueError("SELL stop_loss must be above entry")
 
-    budget = equity * risk_percent / Decimal("100")
     distance = abs(entry - stop_loss)
     loss_per_lot = (distance / spec.trade_tick_size) * spec.trade_tick_value_loss
     if loss_per_lot <= 0:
@@ -67,7 +75,7 @@ def calculate_position_size(
             estimated_loss=minimum_loss,
             loss_per_lot=loss_per_lot,
             reason=(
-                "minimum broker volume exceeds the risk budget; "
+                "minimum broker volume exceeds the cash risk budget; "
                 "trade rejected rather than increasing risk"
             ),
         )
@@ -86,7 +94,7 @@ def calculate_position_size(
             risk_budget=budget,
             estimated_loss=estimated_loss,
             loss_per_lot=loss_per_lot,
-            reason="rounded volume would exceed the risk budget",
+            reason="rounded volume would exceed the cash risk budget",
         )
 
     return PositionSize(
@@ -95,5 +103,5 @@ def calculate_position_size(
         risk_budget=budget,
         estimated_loss=estimated_loss,
         loss_per_lot=loss_per_lot,
-        reason="position size fits the risk budget and broker volume constraints",
+        reason="position size fits the cash risk budget and broker volume constraints",
     )
