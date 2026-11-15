@@ -19,6 +19,8 @@ def main() -> int:
     parser.add_argument("--starting-equity", type=Decimal, default=Decimal("10"))
     parser.add_argument("--output", type=Path, default=Path("backtest-report.json"))
     parser.add_argument("--max-risk-per-trade", type=Decimal, default=Decimal("3.50"))
+    parser.add_argument("--cash-risk-balance-threshold", type=Decimal, default=Decimal("15"))
+    parser.add_argument("--risk-above-cash-threshold-percent", type=Decimal, default=Decimal("10"))
     parser.add_argument("--daily-loss-below-threshold", type=Decimal, default=Decimal("3"))
     parser.add_argument("--daily-loss-at-or-above-threshold", type=Decimal, default=Decimal("2"))
     parser.add_argument("--reduced-risk-balance-threshold", type=Decimal, default=Decimal("30"))
@@ -32,6 +34,8 @@ def main() -> int:
     config = BacktestConfig(
         starting_equity=args.starting_equity,
         max_risk_per_trade_cash=args.max_risk_per_trade,
+        cash_risk_balance_threshold=args.cash_risk_balance_threshold,
+        risk_above_cash_threshold_percent=args.risk_above_cash_threshold_percent,
         daily_loss_below_threshold_percent=args.daily_loss_below_threshold,
         daily_loss_at_or_above_threshold_percent=args.daily_loss_at_or_above_threshold,
         reduced_risk_balance_threshold=args.reduced_risk_balance_threshold,
@@ -62,6 +66,8 @@ def main() -> int:
         "assumptions": {
             "starting_equity": str(config.starting_equity),
             "max_risk_per_trade_cash": str(config.max_risk_per_trade_cash),
+            "cash_risk_balance_threshold": str(config.cash_risk_balance_threshold),
+            "risk_above_cash_threshold_percent": str(config.risk_above_cash_threshold_percent),
             "daily_loss_below_threshold_percent": str(
                 config.daily_loss_below_threshold_percent
             ),
