@@ -250,8 +250,8 @@ def test_rejects_bad_clock_and_negative_loss(analysis, account, quote, spec, pol
 def test_fixed_cash_risk_and_separate_daily_limits(
     analysis, quote, spec, policy
 ):
-    small = AccountSnapshot(Decimal("20"), "USD", True, 100)
-    threshold = AccountSnapshot(Decimal("30"), "USD", True, 100)
+    small = AccountSnapshot(Decimal("15"), "USD", True, 100)
+    threshold = AccountSnapshot(Decimal("20"), "USD", True, 100)
 
     small_result = run_gate(analysis, small, quote, spec, policy)
     threshold_result = run_gate(analysis, threshold, quote, spec, policy)
@@ -259,7 +259,7 @@ def test_fixed_cash_risk_and_separate_daily_limits(
     assert small_result.approved
     assert threshold_result.approved
     assert small_result.risk_budget == Decimal("3.50")
-    assert threshold_result.risk_budget == Decimal("3.50")
+    assert threshold_result.risk_budget == Decimal("2.00")
 
     small_daily_stop = run_gate(
         analysis,
@@ -283,9 +283,11 @@ def test_fixed_cash_risk_and_separate_daily_limits(
     assert "daily realized-loss" in threshold_daily_stop.reasons[-1]
 
 
-def test_policy_defaults_to_fixed_three_fifty_cash_risk():
+def test_policy_defaults_to_cash_cap_then_ten_percent():
     policy = ExecutionPolicy()
     assert policy.max_risk_per_trade_cash == Decimal("3.50")
+    assert policy.cash_risk_balance_threshold == Decimal("15")
+    assert policy.risk_above_cash_threshold_percent == Decimal("10")
     assert policy.max_daily_loss_percent == Decimal("20.0")
     assert policy.reduced_risk_balance_threshold == Decimal("30.0")
 
@@ -297,9 +299,12 @@ def test_policy_defaults_to_fixed_three_fifty_cash_risk():
         (Decimal("10"), Decimal("3.50")),
         (Decimal("15"), Decimal("3.50")),
         (Decimal("2"), Decimal("2")),
+        (Decimal("20"), Decimal("2")),
+        (Decimal("50"), Decimal("5")),
+        (Decimal("100"), Decimal("10")),
     ],
 )
-def test_fixed_cash_risk_is_capped_by_available_equity(
+def test_risk_tiers_apply_cash_cap_then_ten_percent(
     analysis, quote, spec, policy, equity, expected_budget
 ):
     small_account = AccountSnapshot(equity, "USD", True, 100)
