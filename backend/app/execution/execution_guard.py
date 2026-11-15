@@ -24,6 +24,8 @@ class ExecutionPolicy:
     enabled: bool = False
     require_demo_account: bool = True
     max_risk_per_trade_cash: Decimal = Decimal("3.50")
+    cash_risk_balance_threshold: Decimal = Decimal("15")
+    risk_above_cash_threshold_percent: Decimal = Decimal("10")
     max_daily_loss_percent: Decimal = Decimal("20.0")
     reduced_risk_balance_threshold: Decimal = Decimal("30.0")
     max_open_positions: int = 1
@@ -34,6 +36,10 @@ class ExecutionPolicy:
     def __post_init__(self) -> None:
         if self.max_risk_per_trade_cash <= 0:
             raise ValueError("max_risk_per_trade_cash must be positive")
+        if self.cash_risk_balance_threshold <= 0:
+            raise ValueError("cash_risk_balance_threshold must be positive")
+        if not Decimal("0") < self.risk_above_cash_threshold_percent <= Decimal("10"):
+            raise ValueError("risk_above_cash_threshold_percent must be in (0, 10]")
         if self.max_daily_loss_percent <= 0 or self.max_daily_loss_percent > 20:
             raise ValueError("max_daily_loss_percent must be in (0, 20]")
         if self.reduced_risk_balance_threshold <= 0:
@@ -109,8 +115,14 @@ def approve_execution(
         return reject("balance-based risk tiers require a USD-denominated account")
     if open_positions >= policy.max_open_positions:
         return reject("maximum open-position limit reached")
-    # Per-trade risk is a fixed cash ceiling, not a percentage of equity.
-    risk_budget_cash = min(policy.max_risk_per_trade_cash, account.equity)
+    # Fixed cash cap through $15; 10% of equity above $15.
+    risk_budget_cash = (
+        min(policy.max_risk_per_trade_cash, account.equity)
+        if account.equity <= policy.cash_risk_balance_threshold
+        else account.equity
+        * policy.risk_above_cash_threshold_percent
+        / Decimal("100")
+    )
     # Daily protection remains a separate percentage-based account limit.
     effective_daily_loss_percent = (
         policy.max_daily_loss_percent / Decimal("2")
