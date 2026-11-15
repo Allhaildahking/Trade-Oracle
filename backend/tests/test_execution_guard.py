@@ -275,7 +275,7 @@ def test_fixed_cash_risk_and_separate_daily_limits(
         quote,
         spec,
         policy,
-        daily_realized_loss=Decimal("3"),
+        daily_realized_loss=Decimal("4.1"),
     )
     assert not small_daily_stop.approved
     assert not threshold_daily_stop.approved
