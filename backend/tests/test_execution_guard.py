@@ -311,3 +311,46 @@ def test_risk_tiers_apply_cash_cap_then_ten_percent(
     result = run_gate(analysis, small_account, quote, spec, policy)
     assert result.approved
     assert result.risk_budget == expected_budget
+
+
+
+@pytest.mark.parametrize(
+    ("equity", "expected_low_confidence_budget"),
+    [
+        (Decimal("10"), Decimal("1.75")),
+        (Decimal("20"), Decimal("1.00")),
+    ],
+)
+def test_low_confidence_uses_half_the_account_tier_budget(
+    analysis, quote, spec, policy, equity, expected_low_confidence_budget
+):
+    lower_confidence = OracleAnalysis(
+        instrument=analysis.instrument,
+        decision=analysis.decision,
+        technical_score=0.69,
+        weighted_score=analysis.weighted_score,
+        setup=analysis.setup,
+        confirmation=analysis.confirmation,
+        trade=analysis.trade,
+        risk=analysis.risk,
+        reasons=analysis.reasons,
+    )
+    small_account = AccountSnapshot(equity, "USD", True, 100)
+
+    result = run_gate(lower_confidence, small_account, quote, spec, policy)
+
+    assert result.approved
+    assert result.risk_budget == expected_low_confidence_budget
+
+
+def test_high_confidence_uses_full_account_tier_budget(
+    analysis, quote, spec, policy
+):
+    ten_dollar_account = AccountSnapshot(Decimal("10"), "USD", True, 100)
+    twenty_dollar_account = AccountSnapshot(Decimal("20"), "USD", True, 100)
+
+    small = run_gate(analysis, ten_dollar_account, quote, spec, policy)
+    larger = run_gate(analysis, twenty_dollar_account, quote, spec, policy)
+
+    assert small.risk_budget == Decimal("3.50")
+    assert larger.risk_budget == Decimal("2.00")
