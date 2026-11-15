@@ -58,6 +58,8 @@ class BacktestConfig:
     max_risk_per_trade_cash: Decimal = Decimal("3.50")
     risk_above_cash_threshold_percent: Decimal = Decimal("10")
     cash_risk_balance_threshold: Decimal = Decimal("15")
+    high_confidence_score_threshold: Decimal = Decimal("0.70")
+    low_confidence_risk_multiplier: Decimal = Decimal("0.50")
     daily_loss_below_threshold_percent: Decimal = Decimal("20")
     daily_loss_at_or_above_threshold_percent: Decimal = Decimal("10")
     reduced_risk_balance_threshold: Decimal = Decimal("30")
@@ -75,6 +77,10 @@ class BacktestConfig:
             raise ValueError("risk_above_cash_threshold_percent must be in (0, 10]")
         if self.cash_risk_balance_threshold <= 0:
             raise ValueError("cash_risk_balance_threshold must be positive")
+        if not _ZERO < self.high_confidence_score_threshold <= _ONE_HUNDRED / Decimal("100"):
+            raise ValueError("high_confidence_score_threshold must be in (0, 1]")
+        if not _ZERO < self.low_confidence_risk_multiplier <= Decimal("1"):
+            raise ValueError("low_confidence_risk_multiplier must be in (0, 1]")
         if not (
             _ZERO < self.daily_loss_below_threshold_percent <= Decimal("20")
             and _ZERO < self.daily_loss_at_or_above_threshold_percent <= Decimal("20")
@@ -275,13 +281,26 @@ def run_backtest(
             else:
                 # Accounts up to and including $15 use a fixed $3.50 cap.
                 # Above $15, use 10% of current equity.
-                risk_budget_cash = (
+                # High-confidence setups use the full tier budget. Lower-
+                # confidence setups receive half, using the analyzer's
+                # normalized technical score (0..1), not a claimed win rate.
+                high_confidence = (
+                    Decimal(str(analysis.technical_score))
+                    >= config.high_confidence_score_threshold
+                )
+                confidence_multiplier = (
+                    Decimal("1")
+                    if high_confidence
+                    else config.low_confidence_risk_multiplier
+                )
+                tier_budget = (
                     min(config.max_risk_per_trade_cash, equity)
                     if equity <= config.cash_risk_balance_threshold
                     else equity
                     * config.risk_above_cash_threshold_percent
                     / _ONE_HUNDRED
                 )
+                risk_budget_cash = tier_budget * confidence_multiplier
                 spread = _spread(bar)
                 slippage = (
                     config.slippage_ticks_per_side * symbol_spec.trade_tick_size
