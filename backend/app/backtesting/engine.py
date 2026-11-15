@@ -55,8 +55,7 @@ def _ask_ohlc(
 @dataclass(frozen=True, slots=True)
 class BacktestConfig:
     starting_equity: Decimal
-    risk_below_threshold_percent: Decimal = Decimal("10")
-    risk_at_or_above_threshold_percent: Decimal = Decimal("5")
+    max_risk_per_trade_cash: Decimal = Decimal("3.50")
     daily_loss_below_threshold_percent: Decimal = Decimal("20")
     daily_loss_at_or_above_threshold_percent: Decimal = Decimal("10")
     reduced_risk_balance_threshold: Decimal = Decimal("30")
@@ -68,11 +67,8 @@ class BacktestConfig:
     def __post_init__(self) -> None:
         if self.starting_equity <= 0:
             raise ValueError("starting_equity must be positive")
-        if not (
-            _ZERO < self.risk_below_threshold_percent <= Decimal("10")
-            and _ZERO < self.risk_at_or_above_threshold_percent <= Decimal("10")
-        ):
-            raise ValueError("risk percentages must be in (0, 10]")
+        if self.max_risk_per_trade_cash <= 0:
+            raise ValueError("max_risk_per_trade_cash must be positive")
         if not (
             _ZERO < self.daily_loss_below_threshold_percent <= Decimal("20")
             and _ZERO < self.daily_loss_at_or_above_threshold_percent <= Decimal("20")
@@ -271,11 +267,9 @@ def run_backtest(
                 skipped += 1
                 warnings.append(f"Skipped entry at {bar_open.isoformat()}: missing/invalid spread")
             else:
-                risk_pct = (
-                    config.risk_at_or_above_threshold_percent
-                    if equity >= config.reduced_risk_balance_threshold
-                    else config.risk_below_threshold_percent
-                )
+                # Fixed cash risk ceiling. The balance is only used to ensure
+                # the budget never exceeds available equity.
+                risk_budget_cash = min(config.max_risk_per_trade_cash, equity)
                 spread = _spread(bar)
                 slippage = (
                     config.slippage_ticks_per_side * symbol_spec.trade_tick_size
@@ -328,7 +322,7 @@ def run_backtest(
                     else:
                         size = calculate_position_size(
                             equity=equity,
-                            risk_percent=risk_pct,
+                            risk_budget_cash=risk_budget_cash,
                             direction=trade.direction,
                             entry=fill,
                             stop_loss=executable_stop,
