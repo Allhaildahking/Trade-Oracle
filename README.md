@@ -65,7 +65,7 @@ python scripts/check_mt5_demo.py
 
 The diagnostic script refuses to continue if the connected account is not a demo account. It prints account equity/currency and broker-reported symbol values without placing orders.
 
-The execution and historical backtest sizing policy uses a fixed maximum loss budget of USD 3.50 per trade by default, rather than a percentage of account equity. The budget is capped at available equity for accounts below USD 3.50. Daily realized-loss protection remains a separate percentage-based cutoff: 20% below USD 30 equity and 10% from USD 30 upward. Position sizing rounds volume down and rejects a trade if the broker minimum would exceed the cash risk budget. The USD 3.50 ceiling is a hard maximum, not a recommended amount to risk on every trade. Confirm actual symbol tick value, tick size, contract size, and volume limits from the connected Deriv demo terminal; test fixtures are not broker specifications.
+The execution and historical backtest sizing policy uses a tiered per-trade risk rule: accounts with equity up to and including USD 15 have a maximum cash-loss budget of USD 3.50 (capped by available equity); accounts above USD 15 use 10% of current equity. Position sizing rounds volume down and rejects a trade if the broker minimum would exceed the applicable risk budget. The USD 3.50 amount is a hard ceiling for the lower balance tier, not a recommended amount to risk on every trade. Daily realized-loss protection is separate: 20% below USD 30 equity and 10% from USD 30 upward. Confirm actual symbol tick value, tick size, contract size, and volume limits from the connected Deriv demo terminal; test fixtures are not broker specifications.
 
 ## Boundaries
 
