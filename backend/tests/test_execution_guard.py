@@ -18,8 +18,7 @@ NOW = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
 def policy():
     return ExecutionPolicy(
         enabled=True,
-        risk_percent=Decimal("10"),
-        max_risk_percent=Decimal("10"),
+        max_risk_per_trade_cash=Decimal("3.50"),
         allowed_instruments=("XAUUSDmicro",),
     )
 
@@ -248,7 +247,7 @@ def test_rejects_bad_clock_and_negative_loss(analysis, account, quote, spec, pol
         )
 
 
-def test_risk_and_daily_limits_halve_at_thirty_dollars(
+def test_fixed_cash_risk_and_separate_daily_limits(
     analysis, quote, spec, policy
 ):
     small = AccountSnapshot(Decimal("20"), "USD", True, 100)
@@ -259,8 +258,8 @@ def test_risk_and_daily_limits_halve_at_thirty_dollars(
 
     assert small_result.approved
     assert threshold_result.approved
-    assert small_result.risk_budget == Decimal("2")
-    assert threshold_result.risk_budget == Decimal("1.5")
+    assert small_result.risk_budget == Decimal("3.50")
+    assert threshold_result.risk_budget == Decimal("3.50")
 
     small_daily_stop = run_gate(
         analysis,
@@ -284,28 +283,26 @@ def test_risk_and_daily_limits_halve_at_thirty_dollars(
     assert "daily realized-loss" in threshold_daily_stop.reasons[-1]
 
 
-def test_policy_defaults_to_ten_percent_and_twenty_percent():
+def test_policy_defaults_to_fixed_three_fifty_cash_risk():
     policy = ExecutionPolicy()
-    assert policy.risk_percent == Decimal("10.0")
+    assert policy.max_risk_per_trade_cash == Decimal("3.50")
     assert policy.max_daily_loss_percent == Decimal("20.0")
     assert policy.reduced_risk_balance_threshold == Decimal("30.0")
-    assert policy.reduced_risk_multiplier == Decimal("0.5")
 
 
 @pytest.mark.parametrize(
-    ("equity", "expected_risk"),
+    ("equity", "expected_budget"),
     [
-        (Decimal("5"), Decimal("10")),
-        (Decimal("10"), Decimal("10")),
-        (Decimal("29.99"), Decimal("10")),
-        (Decimal("30"), Decimal("5")),
-        (Decimal("100"), Decimal("5")),
+        (Decimal("5"), Decimal("3.50")),
+        (Decimal("10"), Decimal("3.50")),
+        (Decimal("15"), Decimal("3.50")),
+        (Decimal("2"), Decimal("2")),
     ],
 )
-def test_balance_based_risk_tiers(
-    analysis, quote, spec, policy, equity, expected_risk
+def test_fixed_cash_risk_is_capped_by_available_equity(
+    analysis, quote, spec, policy, equity, expected_budget
 ):
     small_account = AccountSnapshot(equity, "USD", True, 100)
     result = run_gate(analysis, small_account, quote, spec, policy)
     assert result.approved
-    assert result.risk_budget == equity * expected_risk / Decimal("100")
+    assert result.risk_budget == expected_budget
